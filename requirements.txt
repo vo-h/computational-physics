@@ -1,0 +1,7 @@
+numpy
+simpy
+scipy
+pandas
+ipykernel
+pydantic
+mendeleev
