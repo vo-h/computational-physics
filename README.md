@@ -10,3 +10,6 @@ https://github.com/ifilot/pyqint/
 examples:
 https://chemistry.montana.edu/callis/courses/chmy564/460water.pdf
 https://content.wolfram.com/sites/19/2012/02/Ho.pdf
+https://joshuagoings.com/2017/04/28/integrals/
+
+https://cwagen.substack.com/p/teach-yourself-quantum-chemistry

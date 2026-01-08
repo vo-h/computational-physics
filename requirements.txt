@@ -4,4 +4,5 @@ scipy
 pandas
 ipykernel
 pydantic
-mendeleev
+plotly
+nbformat
