@@ -6,3 +6,5 @@ ipykernel
 pydantic
 plotly
 nbformat
+basis-set-exchange
+mendeleev

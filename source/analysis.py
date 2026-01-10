@@ -5,7 +5,6 @@ from typing import Callable
 from plotly.graph_objs import Figure
 
 
-
 def get_coords(plane: tuple[float, float], start: int = 0, stop: int = 10, step: float = 0.1, index=2) -> np.ndarray:
     """Generate a list of coordinates along a plane"""
     points = np.linspace(start, stop, int((stop - start) / step) + 1) 
