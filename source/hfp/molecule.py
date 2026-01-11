@@ -1,22 +1,25 @@
 from scipy.integrate import tplquad
 import math
-from pydantic import BaseModel, Field
-from source.hf.sto_ng import STOGOrbital, SijIntegrator, TijIntegrator
-from source.hf import L
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from source.hfp.basis_stog import STOGOrbital, STOGIntegrator
+from source.hfp import L
 import numpy as np
 from tqdm import tqdm
-from typing import Literal, Callable
-from source.hf.atom import Atom
+from source.hfp.atom import Atom
 import numpy as np
-from functools import partial
-
-overlap_integrator = SijIntegrator()
-kinetic_integrator = TijIntegrator()
 
 class Molecule(BaseModel):
     """Molecule class, which consists of multiple atoms."""
+    model_config = ConfigDict(extra='forbid', arbitrary_types_allowed=True)
     atoms: list[Atom]
     cij: list[float] = Field(default_factory=list, description="The coefficients to be optimized during the SCF procedure.")
+
+    @model_validator(mode="after")
+    def validate_basis_consistency(self):
+        bases = set(atom.basis for atom in self.atoms)
+        if len(bases) > 1:
+            raise ValueError(f"All atoms in the molecule must have the same basis set. Found the following basis sets: {', '.join(bases)}.")
+        return self
 
     @property
     def orbitals(self) -> list[STOGOrbital]:
@@ -33,28 +36,26 @@ class Molecule(BaseModel):
         """The exponent coefficients of the GTOs in the STO-3G expansion as a numpy array."""
         return np.stack([orb.alpha for orb in self.orbitals])
     
-    def __call__(self, x: float, y: float, z: float) -> np.ndarray:
-        """Evaluate the orbitals of the atom at a given point (x, y, z)."""
-        return np.array([orb(x, y, z) for orb in self.orbitals])
+    @property
+    def basis(self) -> str:
+        """Return a list of all the STOGOrbitals in the molecule."""
+        return self.atoms[0].basis
     
-    def eval_ao(self, coords: np.ndarray) -> np.ndarray:
-        """Evaluate the orbitals of the molecule at a given set of coordinates."""
-        return np.array([[orb(x, y, z) for orb in self.orbitals] for x, y, z in coords])
+    @property
+    def integrator(self) -> STOGIntegrator:
+        """Return an instance of the STOGIntegrator class, which can be used to calculate the overlap, kinetic energy, and electron-nuclear attraction integrals between the orbitals in the molecule."""
+        if self.basis.startswith("STO-"):
+            return STOGIntegrator()
     
     @property
     def S(self) -> np.ndarray:
-        """
-        The overlap integral between all pairs of orbitals in the molecule.
+        """The overlap integral between all pairs of orbitals in the molecule.
         https://content.wolfram.com/sites/19/2012/02/Ho.pdf
         """
         S = np.zeros((len(self.orbitals), len(self.orbitals)))
         for i in range(len(self.orbitals)):
             for j in range(i, len(self.orbitals)):
-                if i == j:
-                    S[i, j] = 1.0  # The overlap of an orbital with itself is 1
-                else:
-                    S[i, j] = S[j, i] = self._Sij(i, j)
-
+                S[i, j] = S[j, i] = self.integrator.Sij(self.orbitals[i], self.orbitals[j])
         return S
 
     @property
@@ -63,10 +64,7 @@ class Molecule(BaseModel):
         T = np.zeros((len(self.orbitals), len(self.orbitals)))
         for i in range(len(self.orbitals)):
             for j in range(i, len(self.orbitals)):
-                Tij = self._Tij(i, j)
-                T[i, j] = self._Tij(i, j)
-                if i != j:
-                    T[j, i] = Tij  # The kinetic energy integral is symmetric
+                T[i, j] = T[j, i] = self.integrator.Tij(self.orbitals[i], self.orbitals[j])
         return T
 
     @property
@@ -110,19 +108,20 @@ class Molecule(BaseModel):
         # This is a placeholder implementation and should be replaced with the actual calculation of the Fock matrix from the core Hamiltonian and the electron-electron repulsion integrals.
         return self.H + np.zeros((len(self.orbitals), len(self.orbitals)))
 
-    def _Sij(self, i: int, j: int, resolver: Literal['Python', 'C'] = 'Python') -> float:
-        """Calculate the overlap integral between two orbitals."""
-        if resolver == "Python":
-            return overlap_integrator.Sij(self.orbitals[i], self.orbitals[j])
-        return 0.0  # Placeholder return value for C implementation, which should be replaced with the actual calculation of the overlap integral using the C library.
-
-    def _Tij(self, i: int, j: int, resolver: Literal['Python', 'C'] = 'Python') -> float:
-        """Calculate the kinetic energy integral between two orbitals."""
-        if resolver == "Python":
-            return kinetic_integrator.Tij(self.orbitals[i], self.orbitals[j])
-        return 0.0  # Placeholder return value for C implementation, which should be replaced with the actual calculation of the kinetic energy integral using the C library.
-
     def to_pyscf_coords(self) -> str:   
         """Convert the molecule's atomic coordinates to a format compatible with PySCF."""
         return ";".join(f"{atom.atom} {atom.coords[0]} {atom.coords[1]} {atom.coords[2]}" for atom in self.atoms)
     
+    def __call__(self, x: float, y: float, z: float) -> np.ndarray:
+        """Evaluate the orbitals of the atom at a given point (x, y, z)."""
+        return np.array([orb(x, y, z) for orb in self.orbitals])
+    
+    def HF(self):
+        """Perform the Hartree-Fock self-consistent field (SCF) procedure to optimize the coefficients of the molecular orbitals."""
+        # This is a placeholder implementation and should be replaced with the actual implementation of the Hartree-Fock SCF procedure.
+        pass
+
+    def optimize(self):
+        """Optimize the geometry of the molecule."""
+        # This is a placeholder implementation and should be replaced with the actual implementation of an optimization algorithm to optimize the geometry of the molecule.
+        pass

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, model_validator
 from functools import cached_property
-from source.hf.sto_ng import STOGOrbital
-from source.hf import L
+from source.hfp.basis_stog import STOGOrbital
+from source.hfp import L
 import numpy as np
 from typing import Literal, Annotated, Self
 import re
