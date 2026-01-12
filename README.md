@@ -25,6 +25,7 @@
     * [Kinetic Energy Integral](https://content.wolfram.com/sites/19/2013/01/Ho_Kinetic.pdf)
     * [Nuclear Attraction Integral](https://content.wolfram.com/sites/19/2014/12/Ho_Nuclear.pdf)
     * [Two-Electron Repulsion Integral](https://www.youtube.com/watch?v=9n2s8Xo7l3k&t=1h30m)
+* https://github.com/CrawfordGroup/ProgrammingProjects
 
 ## Additional Resources
 * [PyQuint](https://ifilot.github.io/pyqint/electronic_structure_calculations.html) & [Associated Exercises](https://github.com/ifilot/hfhsl2021/)

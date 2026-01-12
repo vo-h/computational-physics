@@ -18,6 +18,11 @@ class Atom(BaseModel):
     basis: Annotated[str, Field(pattern=r"STO-[2-6]G")] = "STO-3G"
 
     @cached_property
+    def Z(self) -> int:
+        """The atomic number of the atom."""
+        return Element(self.atom).atomic_number
+    
+    @cached_property
     def orbitals(self) -> list[STOGOrbital]:
         """List of all atomic orbitals in the molecule."""
         orbitals = []

@@ -1,3 +1,4 @@
+from xml.dom.minidom import Element
 from scipy.integrate import tplquad
 import math
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -43,15 +44,13 @@ class Molecule(BaseModel):
     
     @property
     def integrator(self) -> STOGIntegrator:
-        """Return an instance of the STOGIntegrator class, which can be used to calculate the overlap, kinetic energy, and electron-nuclear attraction integrals between the orbitals in the molecule."""
+        """Return an instance of the STOGIntegrator class, which can be used to calculate the matrices."""
         if self.basis.startswith("STO-"):
             return STOGIntegrator()
     
     @property
     def S(self) -> np.ndarray:
-        """The overlap integral between all pairs of orbitals in the molecule.
-        https://content.wolfram.com/sites/19/2012/02/Ho.pdf
-        """
+        """The overlap integral between all pairs of orbitals in the molecule."""
         S = np.zeros((len(self.orbitals), len(self.orbitals)))
         for i in range(len(self.orbitals)):
             for j in range(i, len(self.orbitals)):
@@ -70,13 +69,14 @@ class Molecule(BaseModel):
     @property
     def V(self) -> np.ndarray:
         """The electron-nuclear attraction integral between all pairs of orbitals in the molecule."""
+        pbar = tqdm(total=len(self.orbitals)*len(self.orbitals), desc="Calculating V matrix")
         V = np.zeros((len(self.orbitals), len(self.orbitals)))
-        pbar = tqdm(total=len(self.orbitals)**2)
         for i in range(len(self.orbitals)):
             for j in range(i, len(self.orbitals)):
-                func = lambda z, y, x: self.orbitals[i](x=x, y=y, z=z) * self.orbitals[j](x=x, y=y, z=z) * sum(-atom.atom_charge / math.sqrt((x - atom.coords[0])**2 + (y - atom.coords[1])**2 + (z - atom.coords[2])**2) for atom in self.atoms)
-                V[i, j] = V[j, i] = tplquad(func, -np.inf, np.inf, -np.inf, np.inf, -np.inf, np.inf)[0]
-                pbar.update(2)
+                term = sum(-atom.Z * self.integrator.VijR(self.orbitals[i], self.orbitals[j], atom.coords) for atom in self.atoms)
+                V[i, j] = V[j, i] = term
+                pbar.update(1 if i == j else 2)
+        pbar.close()
         return V
 
     @property
