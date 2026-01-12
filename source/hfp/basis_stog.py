@@ -203,10 +203,8 @@ class STOGIntegrator:
             term1 = -(A-P)
             term2 = -t**2 * (P-R) * func(ai=ai-1, bi=0)
             term3 = (ai-1)/(2*alpha + 2*beta) * (1-t**2) * func(ai=ai-2, bi=0)
-            result = term1 + term2 + term3
-            return result
-        result = func(ai=ai+1, bi=bi-1) + (A-B)*func(ai=ai, bi=bi-1)
-        return result
+            return term1 + term2 + term3
+        return func(ai=ai+1, bi=bi-1) + (A-B)*func(ai=ai, bi=bi-1)
 
     ####### Common subroutines for Sij, Tij, and Vij #######
     def compute_E_AB(self, gto1: STOGPrimitive, gto2: STOGPrimitive) -> float:
