@@ -34,10 +34,10 @@ class STOGPrimitive(BaseModel):
         denominator = math.factorial(2*self.nx) * math.factorial(2*self.ny) * math.factorial(2*self.nz)
         return prefactor * math.sqrt(numerator/ denominator)
     
-    @cached_property
-    def Y(self) -> Callable[[float, float, float], float]:
+
+    def Y(self, x: float, y: float , z: float) -> float:
         """Calculate the angular part of the GTO in cartesian coordinates."""
-        return lambda x, y, z: (x - self.coords[0]) ** self.nx * (y - self.coords[1]) ** self.ny * (z - self.coords[2]) ** self.nz
+        return (x - self.coords[0]) ** self.nx * (y - self.coords[1]) ** self.ny * (z - self.coords[2]) ** self.nz
 
     def r2(self, x: float, y: float, z: float) -> float:
         """Calculate the squared distance from the center of the GTO."""
