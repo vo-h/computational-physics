@@ -215,6 +215,8 @@ STOOrbital* fetch_orbital_data(char *url, double coords[3], int *num_orbitals, i
                     orbitals[orbital_idx].n = num_gtos;
                     orbital_idx++;
                 }
+                free(alphas);
+                free(ccs);
             };
             line = next_line + 1;
             

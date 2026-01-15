@@ -47,6 +47,11 @@ int main(int argc, char *argv[]) {
         }
 
         double **S = compute_S(&molecule, num_orbitals);
+        if (S == NULL) {
+            fprintf(stderr, "Error: Failed to compute overlap matrix\n");
+            free_molecule(&molecule);
+            return 1;
+        }
         printf("Computed overlap matrix S of size %d x %d.\n", num_orbitals, num_orbitals);
         for (int i = 0; i < num_orbitals; i++) {
             for (int j = 0; j < num_orbitals; j++) {

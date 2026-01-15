@@ -31,6 +31,10 @@ Molecule parse_molecule_from_file(const char *filename, int num_atoms) {
 
     while (fscanf(fptr, "%2s %lf %lf %lf %d %d", symbol, &x, &y, &z, &Z, &basis) == 6) {
         /*Parse atomic information*/
+        if (molecule.num_atoms >= num_atoms) {
+            fprintf(stderr, "Warning: File contains more atoms than specified (%d)\n", num_atoms);
+            break;
+        }
         Atom temp = parse_atom(symbol, x, y, z, basis);
         atoms[molecule.num_atoms++] = temp;
     }
@@ -63,6 +67,7 @@ double **compute_S(Molecule *molecule, int num_orbitals) {
     for (int i = 0; i < num_orbitals; i++) {
         S[i] = (double *)malloc(num_orbitals * sizeof(double));
         if (S[i] == NULL) {
+            fprintf(stderr, "Failed to allocate memory for overlap matrix row %d\n", i);
             for (int k = 0; k < i; k++) {
                 free(S[k]);
             }
