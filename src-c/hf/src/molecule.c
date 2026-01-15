@@ -45,7 +45,7 @@ Molecule parse_molecule_from_file(const char *filename, int num_atoms) {
     return molecule;
 }
 
-double **compute_S(Molecule *molecule, int num_orbitals) {
+double **compute_1e_integral(Molecule *molecule, int num_orbitals, char *type) {
     /*Compute the full overlap integral matrix for a set of STO-nG orbitals by iterating over all pairs of orbitals and calculating their overlap integrals using compute_Sij().*/
     STOOrbital *orbitals = (STOOrbital *)malloc(num_orbitals * sizeof(STOOrbital));
     
@@ -57,21 +57,21 @@ double **compute_S(Molecule *molecule, int num_orbitals) {
         }
     }
 
-    /* Allocate matrix for overlap integrals */
-    double **S = (double **)malloc(num_orbitals * sizeof(double *));
-    if (S == NULL) {
+    /* Allocate matrix for 1-electron integrals */
+    double **matrix = (double **)malloc(num_orbitals * sizeof(double *));
+    if (matrix == NULL) {
         free(orbitals);
         return NULL;
     }
 
     for (int i = 0; i < num_orbitals; i++) {
-        S[i] = (double *)malloc(num_orbitals * sizeof(double));
-        if (S[i] == NULL) {
-            fprintf(stderr, "Failed to allocate memory for overlap matrix row %d\n", i);
+        matrix[i] = (double *)malloc(num_orbitals * sizeof(double));
+        if (matrix[i] == NULL) {
+            fprintf(stderr, "Failed to allocate memory for 1-electron integral matrix row %d\n", i);
             for (int k = 0; k < i; k++) {
-                free(S[k]);
+                free(matrix[k]);
             }
-            free(S);
+            free(matrix);
             free(orbitals);
             return NULL;
         }
@@ -80,11 +80,18 @@ double **compute_S(Molecule *molecule, int num_orbitals) {
     // Initialize the matrix (example)
     for (int i = 0; i < num_orbitals; i++) {
         for (int j = 0; j < num_orbitals; j++) {
-            S[i][j] = compute_Sij(orbitals[i], orbitals[j]);
+            if (strcmp(type, "overlap") == 0) {
+                matrix[i][j] = compute_Sij(orbitals[i], orbitals[j]);
+            } else if (strcmp(type, "kinetic") == 0) {
+                matrix[i][j] = compute_Tij(orbitals[i], orbitals[j]);
+            } else {
+                fprintf(stderr, "Unknown integral type: %s\n", type);
+                matrix[i][j] = 0.0;
+            }
         }
     }
     free(orbitals);
-    return S;
+    return matrix;
 }
 
 void free_molecule(Molecule *molecule) {
@@ -102,5 +109,3 @@ void free_molecule(Molecule *molecule) {
         molecule->atoms = NULL;
     }
 }
-
-

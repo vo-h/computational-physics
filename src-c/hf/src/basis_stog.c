@@ -62,3 +62,50 @@ double compute_Sij(STOOrbital orbital1, STOOrbital orbital2) {
     }
     return Sij;
 }
+
+double compute_tx(double A, double B, double alpha, double beta, int ai, int bi) {
+    /*Compute the kinetic energy integral between two GTOs along a single axis using recursion.*/
+
+    double P = (alpha * A + beta * B) / (alpha + beta);
+
+    /*Base cases for recursion*/
+    if (ai < 0 || bi < 0) {return 0.0;}
+    if (ai == 0 && bi == 0) {return 2*alpha*beta*compute_sx(A, B, alpha, beta, 1, 1);}
+    if (bi == 0) {return -ai*beta*compute_sx(A, B, alpha, beta, ai-1, 1) + 2*alpha*beta*compute_sx(A, B, alpha, beta, ai+1, 1);}
+    if (ai == 0) {return -bi*alpha*compute_sx(A, B, alpha, beta, 1, bi-1) + 2*alpha*beta*compute_sx(A, B, alpha, beta, 1, bi+1);}
+
+    /*Index recursion: eq. 11*/
+    double term1 = ai*bi*compute_sx(A, B, alpha, beta, ai-1, bi-1);
+    double term2 = 2*ai*beta*compute_sx(A, B, alpha, beta, ai-1, bi+1);
+    double term3 = 2*bi*alpha*compute_sx(A, B, alpha, beta, ai+1, bi-1);
+    double term4 = 4*alpha*beta*compute_sx(A, B, alpha, beta, ai+1, bi+1);
+    return 0.5*(term1 + term2 + term3 + term4);
+}
+
+double compute_Tij(STOOrbital orbital1, STOOrbital orbital2) {
+    /*Compute the kinetic energy integral between two STO-nG orbitals by multiplying the integrals along each axis and summing contributions from all GTO primitives.*/
+
+    int n = orbital1.n; 
+    int m = orbital2.n;
+    double Tij = 0.0;
+    for (int u = 0; u < n; u++) {
+        for (int v = 0; v < m; v++) {
+            STOPrimitive gto1 = orbital1.primitives[u];
+            STOPrimitive gto2 = orbital2.primitives[v];
+            double coeff = gto1.cc * gto1.N * gto2.cc * gto2.N;
+            double r2 = pow(gto1.cords[0] - gto2.cords[0], 2) + pow(gto1.cords[1] - gto2.cords[1], 2) + pow(gto1.cords[2] - gto2.cords[2], 2);
+            double E_AB = exp(-gto1.alpha * gto2.alpha * r2 / (gto1.alpha + gto2.alpha));
+            double prefactor = pow(M_PI / (gto1.alpha + gto2.alpha), 1.5);
+
+            double tx = compute_tx(gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx);
+            double ty = compute_tx(gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny);
+            double tz = compute_tx(gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz);
+
+            double sx = compute_sx(gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx);
+            double sy = compute_sx(gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny);
+            double sz = compute_sx(gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz);
+            Tij += coeff * prefactor * E_AB * (tx*sy*sz + sx*ty*sz + sx*sy*tz);
+        }
+    }
+    return Tij;
+}

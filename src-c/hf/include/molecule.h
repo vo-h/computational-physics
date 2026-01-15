@@ -9,5 +9,5 @@ typedef struct {
 void free_molecule(Molecule *molecule);
 
 Molecule parse_molecule_from_file(const char *filename, int num_atoms);
-double **compute_S(Molecule *molecule, int num_orbitals);
+double **compute_1e_integral(Molecule *molecule, int num_orbitals, char *type);
 #endif

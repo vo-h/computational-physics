@@ -40,30 +40,30 @@ int main(int argc, char *argv[]) {
 
     Molecule molecule = parse_molecule_from_file(filename, num_atoms);
     printf("Parsed molecule with %d atoms.\n", molecule.num_atoms);
-    if (method != NULL && strcmp(method, "overlap") == 0) {
+    if (method != NULL && (strcmp(method, "overlap") == 0) || strcmp(method, "kinetic") == 0) {
         int num_orbitals = 0;
         for (int i = 0; i < molecule.num_atoms; i++) {
             num_orbitals += molecule.atoms[i].num_orbitals;
         }
 
-        double **S = compute_S(&molecule, num_orbitals);
-        if (S == NULL) {
-            fprintf(stderr, "Error: Failed to compute overlap matrix\n");
+        double **matrix = compute_1e_integral(&molecule, num_orbitals, method);
+        if (matrix == NULL) {
+            fprintf(stderr, "Error: Failed to compute %s matrix\n", method);
             free_molecule(&molecule);
             return 1;
         }
-        printf("Computed overlap matrix S of size %d x %d.\n", num_orbitals, num_orbitals);
+        printf("Computed %s matrix of size %d x %d.\n", method, num_orbitals, num_orbitals);
         for (int i = 0; i < num_orbitals; i++) {
             for (int j = 0; j < num_orbitals; j++) {
-                printf("%f\t", S[i][j]);
+                printf("%f\t", matrix[i][j]);
             }
             printf("\n");
         }
-        // Free the overlap matrix
+        // Free the matrix
         for (int i = 0; i < num_orbitals; i++) {
-            free(S[i]);
+            free(matrix[i]);
         }
-        free(S);
+        free(matrix);
     }
 
     // Clean up molecule memory
