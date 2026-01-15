@@ -102,9 +102,6 @@ STOOrbital* fetch_orbital_data(char *url, double coords[3], int *num_orbitals, i
         return NULL;
     }
     
-    // Debug: print raw response
-    // printf("=== Basis set data received ===\n%s\n=== End of data ===\n", response.data);
-    
     // First pass: count shells (which become orbitals)
     // S shell = 1 orbital, P shell = 3 orbitals (px, py, pz), D shell = 5 orbitals
     int orbital_count = 0;
@@ -116,15 +113,9 @@ STOOrbital* fetch_orbital_data(char *url, double coords[3], int *num_orbitals, i
     while ((next_line = strchr(line, '\n')) != NULL) {
         *next_line = '\0';
         if (strlen(line) > 0 && line[1] == ' ') {
-            if (line[0] == 'S') {
-                orbital_count += 1;
-            }
-            else if (line[0] == 'P') {
-                orbital_count += 3;
-            }
-            else if (line[0] == 'D') {
-                orbital_count += 5;
-            }
+            if (line[0] == 'S') {orbital_count += 1;}
+            else if (line[0] == 'P') {orbital_count += 3;}
+            else if (line[0] == 'D') {orbital_count += 5;}
         }
         line = next_line + 1;
     }

@@ -6,6 +6,7 @@ typedef struct {
     Atom *atoms; // Array of atoms in the molecule
     int num_atoms; // Number of atoms in the molecule
 } Molecule;
+void free_molecule(Molecule *molecule);
 
 Molecule parse_molecule_from_file(const char *filename, int num_atoms);
 double **compute_S(Molecule *molecule, int num_orbitals);

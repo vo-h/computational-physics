@@ -24,7 +24,7 @@ double compute_sx(double A, double B, double alpha, double beta, int ai, int bi)
     /*Base cases for recursion*/
     if (ai < 0 || bi < 0) {return 0.0;}
     if (ai == 0 && bi == 0) {return 1;}
-    if (ai == 0 && bi == 1) {return -(A-P);}
+    if (ai == 1 && bi == 0) {return -(A-P);}
 
     /*Index recursion: eq. 11*/
     if (ai > 1 && bi == 0) {
@@ -56,7 +56,8 @@ double compute_Sij(STOOrbital orbital1, STOOrbital orbital2) {
             double sx = compute_sx(gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx);
             double sy = compute_sx(gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny);
             double sz = compute_sx(gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz);
-            Sij += coeff * prefactor * E_AB * sx * sy * sz;
+            double contribution = coeff * prefactor * E_AB * sx * sy * sz;
+            Sij += contribution;
         }
     }
     return Sij;

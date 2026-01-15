@@ -1,5 +1,6 @@
 CC=clang
-CFLAGS=-Wall -Wextra
+# CFLAGS=-Wall -Wextra
+CFLAGS=
 HF_SRC=src-c/hf/src
 HF_INC=src-c/hf/include
 HF_BUILD=src-c/hf/build
