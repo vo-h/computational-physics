@@ -1,15 +1,11 @@
 #define _USE_MATH_DEFINES // Required for M_PI on some compilers
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h> // For getopt
 #include "basis_stog.h"
 #include "atom.h"
-
-typedef struct {
-    Atom *atoms; // Array of atoms in the molecule
-    int num_atoms; // Number of atoms in the molecule
-} Molecule;
-
+#include "molecule.h"
 
 Molecule parse_molecule_from_file(const char *filename, int num_atoms) {
     /*Parse a molecule from an input file, extracting the atomic symbols, coordinates, and STO-nG orbital information to populate the Molecule struct.*/
