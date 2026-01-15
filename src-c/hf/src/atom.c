@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <curl/curl.h>
-#include "basis_stog.h"
-#include "atom.h"
+#include "../include/basis_stog.h"
+#include "../include/atom.h"
 
 void replace_char(char* str, char find, char replace) {
     int i = 0;

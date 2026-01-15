@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "basis_stog.h"
+#include "../include/basis_stog.h"
 
 double compute_N(double alpha, int *n) {
     /*Calculate the normalization constant for each GTO primitive.*/
@@ -61,27 +61,3 @@ double compute_Sij(STOOrbital orbital1, STOOrbital orbital2) {
     }
     return Sij;
 }
-
-double **compute_S(STOOrbital *orbitals, int num_orbitals) {
-    /*Compute the full overlap integral matrix for a set of STO-nG orbitals by iterating over all pairs of orbitals and calculating their overlap integrals using compute_Sij().*/
-    double **S = (double **)malloc(num_orbitals * sizeof(double *));
-    if (S == NULL) {
-        return NULL;
-    }
-
-    for (int i = 0; i < num_orbitals; i++) {
-        S[i] = (double *)malloc(num_orbitals * sizeof(double));
-        if (S[i] == NULL) {
-            return NULL; 
-        }
-    }
-
-    // Initialize the matrix (example)
-    for (int i = 0; i < num_orbitals; i++) {
-        for (int j = 0; j < num_orbitals; j++) {
-            S[i][j] = compute_Sij(orbitals[i], orbitals[j]);
-        }
-    }
-    return S;
-}
-

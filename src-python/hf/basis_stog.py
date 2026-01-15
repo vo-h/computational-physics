@@ -7,7 +7,7 @@ from typing import Callable, Literal
 import numpy as np
 from scipy.special import factorial2
 from functools import partial
-from source.math.chebyshev import IntChebyshev
+from hf.chebyshev import IntChebyshev
 
 
 

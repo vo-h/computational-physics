@@ -57,7 +57,7 @@ double int_chebyshev(double eps, int m, double (*f)(double)) {
 
         n = (1+j) * n;
         p = p + (1-j) * (chp-q);
-        err = 16 * abs((1-j)*(q-3*p/2) + j * (chp-2*q)) / (3*n);
+        err = 16 * fabs((1-j)*(q-3*p/2) + j * (chp-2*q)) / (3*n);
         q = (1-j) * q + j * chp;
     }
     return 16 * q / (3*n);

@@ -2,11 +2,11 @@ from xml.dom.minidom import Element
 from scipy.integrate import tplquad
 import math
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from source.hfp.basis_stog import STOGOrbital, STOGIntegrator
-from source.hfp import L
+from hf.basis_stog import STOGOrbital, STOGIntegrator
+from hf import L
 import numpy as np
 from tqdm import tqdm
-from source.hfp.atom import Atom
+from hf.atom import Atom
 import numpy as np
 
 class Molecule(BaseModel):
