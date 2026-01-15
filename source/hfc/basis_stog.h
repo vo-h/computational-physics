@@ -1,3 +1,4 @@
+#pragma once
 #define _USE_MATH_DEFINES // Required for M_PI on some compilers
 #include <math.h>
 #include <stdio.h>

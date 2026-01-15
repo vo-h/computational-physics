@@ -1,16 +1,9 @@
 #define _USE_MATH_DEFINES // Required for M_PI on some compilers
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h> // For getopt
 #include "basis_stog.h"
-#include <unistd.h> 
-
-typedef struct  {
-    char atom[3]; // Element symbol (e.g., "H", "C", "O")
-    int Z; // Atomic number
-    double coords[3]; // Atomic coordinates (x, y, z)
-    STOOrbital *orbitals; // Array of STO-nG orbitals for the atom
-    int num_orbitals; // Number of orbitals for the atom
-} Atom;
+#include "atom.h"
 
 typedef struct {
     Atom *atoms; // Array of atoms in the molecule
@@ -36,17 +29,7 @@ Molecule parse_molecule_from_file(const char *filename, int num_atoms) {
     while (fscanf(fptr, "%2s %lf %lf %lf %d %d", symbol, &x, &y, &z, &Z, &basis) == 6) {
 
         /*Parse atomic information*/
-        Atom temp = {
-            .atom = *symbol,
-            .Z = Z,
-            .coords = {x, y, z},
-            .orbitals = NULL,
-            .num_orbitals = basis,
-        };
-
-        /*Parse orbital information*/
-
-
+        Atom temp = parse_atom(symbol, x, y, z, basis);
         atoms[molecule.num_atoms++] = temp;
     }
     molecule.atoms = atoms;
@@ -59,9 +42,10 @@ int main(int argc, char *argv[]) {
 
     int opt;
     char *filename = NULL;
+    char *method = NULL;
     int num_atoms = 0;
 
-    while((opt = getopt(argc, argv, ":f:n:")) != -1) 
+    while((opt = getopt(argc, argv, ":f:n:m:")) != -1) 
     { 
         switch(opt) 
         { 
@@ -73,6 +57,10 @@ int main(int argc, char *argv[]) {
                 printf("Number of atoms: %s\n", optarg); 
                 num_atoms = atoi(optarg);
                 break; 
+            case 'm': 
+                printf("Method: %s\n", optarg); 
+                method = optarg;
+                break; 
             case ':': 
                 printf("option needs a value\n"); 
                 break; 
@@ -83,9 +71,6 @@ int main(int argc, char *argv[]) {
     } 
 
     Molecule molecule = parse_molecule_from_file(filename, num_atoms);
-    printf("Molecule has %d atoms.\n", molecule.num_atoms);
-    for (int i = 0; i < molecule.num_atoms; i++) {
-        printf("Atom %d: %s, Z=%d, coords=(%.2f, %.2f, %.2f)\n", i+1, molecule.atoms[i].atom, molecule.atoms[i].Z, molecule.atoms[i].coords[0], molecule.atoms[i].coords[1], molecule.atoms[i].coords[2]);
-    }
+
     return 0;
 }
