@@ -162,10 +162,10 @@ double omega(int n, int i) {
 
 double int_chebyshev(double eps, int m, STOPrimitive gto1, STOPrimitive gto2, double *R) {
     /*Perform numerical integration of a function f using Chebyshev quadrature with m points and a specified tolerance eps.*/
-    int err = 10;
+    double err = 10.0;
     int n = 3;
-    double c0 = cos(M_PI/6);
-    double s0 = sin(M_PI/6);
+    double c0 = cos(M_PI/6.0);
+    double s0 = sin(M_PI/6.0);
     double c1 = s0;
     double s1 = c0;
     double q = (integrand(gto1, gto2, R, abscissa(2,1)) + integrand(gto1, gto2, R, -abscissa(2,1))) * omega(2,1);
@@ -176,7 +176,7 @@ double int_chebyshev(double eps, int m, STOPrimitive gto1, STOPrimitive gto2, do
     double s;
     double xp;
 
-    while ((err > eps) && (2*n*(1-j) + j*4*n/3 - 1 <= m)) {
+    while ((err > eps) && (2*n*(1-j) + j*4*n/3.0 - 1 <= m)) {
         j = 1 - j;
         c1 = j * c1 + (1-j) * c0;
         s1 = j * s1 + (1-j) * s0;
@@ -197,10 +197,10 @@ double int_chebyshev(double eps, int m, STOPrimitive gto1, STOPrimitive gto2, do
 
         n = (1+j) * n;
         p = p + (1-j) * (chp-q);
-        err = 16 * fabs((1-j)*(q-3*p/2) + j * (chp-2*q)) / (3*n);
+        err = 16 * fabs((1-j)*(q-3*p/2.0) + j * (chp-2*q)) / (double)(3*n);
         q = (1-j) * q + j * chp;
     }
-    return 16 * q / (3*n);
+    return 16 * q / (double)(3*n);
 }
 
 

@@ -156,9 +156,10 @@ class STOGIntegrator:
                     v_x = self.compute_integral_by_func(gto1, gto2, self.compute_nx, 'x', R=R, t=t)
                     v_y = self.compute_integral_by_func(gto1, gto2, self.compute_nx, 'y', R=R, t=t)
                     v_z = self.compute_integral_by_func(gto1, gto2, self.compute_nx, 'z', R=R, t=t)
-                    return math.exp(-term1*term3) * v_x * v_y * v_z
+                    return 0.5 * math.exp(-term1*term3) * v_x * v_y * v_z
+                print("At t = 0.5, func(t) = ", func(0.5))
                 prefactor = 2 * math.pi / (gto1.alpha + gto2.alpha)
-                matrix[u, v] = coeff * E_AB * prefactor * self.cheby_shev_integrator.integrate(eps=1e-10, f=lambda x: 0.5 * func(0.5*(x+1)), m=50000)
+                matrix[u, v] = coeff * E_AB * prefactor * self.cheby_shev_integrator.integrate(eps=1e-10, f=lambda x: func(0.5*(x+1)), m=50000)
         output = float(np.sum(matrix).item()) + 1 - 1
         return 0.0 if math.isclose(output, 0.0) else output
 
