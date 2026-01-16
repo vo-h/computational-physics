@@ -20,7 +20,7 @@ double compute_N(double alpha, int *n);
 
 double compute_Sij(STOOrbital orbital1, STOOrbital orbital2); /*https://content.wolfram.com/sites/19/2012/02/Ho.pdf*/
 double compute_Tij(STOOrbital orbital1, STOOrbital orbital2);
-double compute_Vij(STOOrbital orbital1, STOOrbital orbital2);
+double compute_VijR(STOOrbital orbital1, STOOrbital orbital2, double R[3]);
 
 double compute_Jijkl(STOOrbital orbital1, STOOrbital orbital2, STOOrbital orbital3, STOOrbital orbital4);
 double compute_Kijkl(STOOrbital orbital1, STOOrbital orbital2, STOOrbital orbital3, STOOrbital orbital4);

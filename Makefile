@@ -4,7 +4,7 @@ CFLAGS=
 HF_SRC=src-c/hf/src
 HF_INC=src-c/hf/include
 HF_BUILD=src-c/hf/build
-HF_BIN=src-c/hf/hf
+HF_BIN=src-c/hf/hf.exe
 
 # Source files
 HF_SOURCES=$(wildcard $(HF_SRC)/*.c)

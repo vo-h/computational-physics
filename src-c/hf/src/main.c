@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
 
     Molecule molecule = parse_molecule_from_file(filename, num_atoms);
     printf("Parsed molecule with %d atoms.\n", molecule.num_atoms);
-    if (method != NULL && (strcmp(method, "overlap") == 0) || strcmp(method, "kinetic") == 0) {
+    if (method != NULL && (strcmp(method, "overlap") == 0) || strcmp(method, "kinetic") == 0 || strcmp(method, "nuclear") == 0) {
         int num_orbitals = 0;
         for (int i = 0; i < molecule.num_atoms; i++) {
             num_orbitals += molecule.atoms[i].num_orbitals;

@@ -79,14 +79,21 @@ double **compute_1e_integral(Molecule *molecule, int num_orbitals, char *type) {
 
     // Initialize the matrix (example)
     for (int i = 0; i < num_orbitals; i++) {
-        for (int j = 0; j < num_orbitals; j++) {
+        for (int j = i; j < num_orbitals; j++) {
             if (strcmp(type, "overlap") == 0) {
                 matrix[i][j] = compute_Sij(orbitals[i], orbitals[j]);
+                matrix[j][i] = matrix[i][j];
             } else if (strcmp(type, "kinetic") == 0) {
                 matrix[i][j] = compute_Tij(orbitals[i], orbitals[j]);
-            } else {
-                fprintf(stderr, "Unknown integral type: %s\n", type);
+                matrix[j][i] = matrix[i][j];
+            } else if (strcmp(type, "nuclear") == 0) {
                 matrix[i][j] = 0.0;
+                for (int k = 0; k < molecule->num_atoms; k++) {
+                    double R[3] = {molecule->atoms[k].coords[0], molecule->atoms[k].coords[1], molecule->atoms[k].coords[2]};
+                    double VijR = compute_VijR(orbitals[i], orbitals[j], R);
+                    matrix[i][j] += -molecule->atoms[k].Z * VijR;
+                }
+                matrix[j][i] = matrix[i][j];
             }
         }
     }
