@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 from hf.atom import Atom
 import numpy as np
-
+from functools import cached_property
 
 class Molecule(BaseModel):
     """Molecule class, which consists of multiple atoms."""
@@ -49,7 +49,7 @@ class Molecule(BaseModel):
         if self.basis.startswith("STO-"):
             return STOGIntegrator()
     
-    @property
+    @cached_property
     def S(self) -> np.ndarray:
         """The overlap integral between all pairs of orbitals in the molecule."""
         S = np.zeros((len(self.orbitals), len(self.orbitals)))
@@ -58,7 +58,7 @@ class Molecule(BaseModel):
                 S[i, j] = S[j, i] = self.integrator.Sij(self.orbitals[i], self.orbitals[j])
         return S
 
-    @property
+    @cached_property
     def T(self) -> np.ndarray:
         """The kinetic energy integral between all pairs of orbitals in the molecule."""
         T = np.zeros((len(self.orbitals), len(self.orbitals)))
@@ -67,8 +67,8 @@ class Molecule(BaseModel):
                 T[i, j] = T[j, i] = self.integrator.Tij(self.orbitals[i], self.orbitals[j])
         return T
 
-    @property
-    def V(self) -> np.ndarray:
+    @cached_property
+    def Vne(self) -> np.ndarray:
         """The electron-nuclear attraction integral between all pairs of orbitals in the molecule."""
         pbar = tqdm(total=len(self.orbitals)*len(self.orbitals), desc="Calculating V matrix")
         V = np.zeros((len(self.orbitals), len(self.orbitals)))
@@ -78,13 +78,13 @@ class Molecule(BaseModel):
                 pbar.update(1 if i == j else 2)
         return V
 
-    @property
+    @cached_property
     def H(self) -> np.ndarray:
         """The core Hamiltonian matrix, which is the sum of the kinetic energy and electron-nuclear attraction integrals."""
         return self.T + self.V
 
-    @property
-    def J(self) -> np.ndarray:
+    @cached_property
+    def Vee(self) -> np.ndarray:
         """The Coulomb matrix, which is calculated from the density matrix and the two-electron integrals."""
         # This is a placeholder implementation and should be replaced with the actual calculation of the Coulomb matrix from the density matrix and the two-electron integrals.
         V = np.zeros((len(self.orbitals), len(self.orbitals), len(self.orbitals), len(self.orbitals)))
@@ -97,11 +97,6 @@ class Molecule(BaseModel):
                         V[k,j,i,l] = V[i,l,k,j] = V[l,i,j,k] = V[j,k,l,i] = term
         return V
 
-    @property
-    def K(self) -> np.ndarray:
-        """The exchange matrix, which is calculated from the density matrix and the two-electron integrals."""
-        # This is a placeholder implementation and should be replaced with the actual calculation of the exchange matrix from the density matrix and the two-electron integrals.
-        return np.zeros((len(self.orbitals), len(self.orbitals)))
 
     @property
     def P(self) -> np.ndarray:

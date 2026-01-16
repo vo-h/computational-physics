@@ -175,7 +175,7 @@ class STOGIntegrator:
                         gto4 = orb4.gtos[v]
 
                         norms = gto1.N * gto2.N * gto3.N * gto4.N
-                        coefs = cc1 * cc2 * cc3 * cc3 * cc4
+                        coefs = cc1 * cc2 * cc3 * cc4
                         matrix[m, n, u, v] = norms * coefs * self.compute_repulsion(gto1, gto2, gto3, gto4)
         output = float(np.sum(matrix).item()) + 1 - 1
         return 0.0 if math.isclose(output, 0.0) else output
@@ -243,19 +243,11 @@ class STOGIntegrator:
                         for nu in range(gto3.ny+gto4.ny+1):
                             for phi in range(gto3.nz+gto4.nz+1):
                                 term1 = compute_E(gto1.nx, gto2.nx, t, gto1.coords[0] - gto2.coords[0], gto1.alpha, gto2.alpha)
-                                term2 = compute_E(gto1.ny, gto2.ny, u, gto1.coords[0] - gto2.coords[0], gto1.alpha, gto2.alpha)
-                                term3 = compute_E(gto1.nz, gto2.nz, v, gto1.coords[0] - gto2.coords[0], gto1.alpha, gto2.alpha)
+                                term2 = compute_E(gto1.ny, gto2.ny, u, gto1.coords[1] - gto2.coords[1], gto1.alpha, gto2.alpha)
+                                term3 = compute_E(gto1.nz, gto2.nz, v, gto1.coords[2] - gto2.coords[2], gto1.alpha, gto2.alpha)
                                 term4 = compute_E(gto3.nx, gto4.nx, tau, gto3.coords[0] - gto4.coords[0], gto3.alpha, gto4.alpha)
-                                term5 = compute_E(gto3.ny, gto4.ny, nu, gto3.coords[0] - gto4.coords[0], gto3.alpha, gto4.alpha)
-                                term6 = compute_E(gto3.nz, gto4.nz, phi, gto3.coords[0] - gto4.coords[0], gto3.alpha, gto4.alpha)
-
-                                # term1 = self.compute_sx(A=gto1.coords[0], B=gto2.coords[0], alpha=gto1.alpha, beta=gto2.alpha, ai=gto1.nx, bi=gto2.nx)
-                                # term2 = self.compute_sx(A=gto1.coords[1], B=gto2.coords[1], alpha=gto1.alpha, beta=gto2.alpha, ai=gto1.ny, bi=gto2.ny)
-                                # term3 = self.compute_sx(A=gto1.coords[2], B=gto2.coords[2], alpha=gto1.alpha, beta=gto2.alpha, ai=gto1.nz, bi=gto2.nz)
-                                # term4 = self.compute_sx(A=gto3.coords[0], B=gto4.coords[0], alpha=gto3.alpha, beta=gto4.alpha, ai=gto3.nx, bi=gto4.nx)
-                                # term5 = self.compute_sx(A=gto3.coords[1], B=gto4.coords[1], alpha=gto3.alpha, beta=gto4.alpha, ai=gto3.ny, bi=gto4.ny)
-                                # term6 = self.compute_sx(A=gto3.coords[2], B=gto4.coords[2], alpha=gto3.alpha, beta=gto4.alpha, ai=gto3.nz, bi=gto4.nz)
-                                
+                                term5 = compute_E(gto3.ny, gto4.ny, nu, gto3.coords[1] - gto4.coords[1], gto3.alpha, gto4.alpha)
+                                term6 = compute_E(gto3.nz, gto4.nz, phi, gto3.coords[2] - gto4.coords[2], gto3.alpha, gto4.alpha)
                                 term7 = np.power(-1, tau+nu+phi)
                                 term8 = compute_R(t+tau, u+nu, v+phi, 0, alpha)
                                 val += term1*term2*term3*term4*term5*term6*term7*term8
