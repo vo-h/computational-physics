@@ -57,6 +57,14 @@ class Molecule(BaseModel):
             for j in range(i, len(self.orbitals)):
                 S[i, j] = S[j, i] = self.integrator.Sij(self.orbitals[i], self.orbitals[j])
         return S
+    
+    @cached_property
+    def S12(self) -> np.ndarray:
+        """The symmetric orthogonalization matrix"""
+        eigv, L = np.linalg.eig(self.S)
+        LAMBDA12 = np.diag(1/np.sqrt(eigv))
+        res = L @ LAMBDA12 @ np.transpose(L)
+        return np.where(np.isclose(res, 0.0), 0.0, res)
 
     @cached_property
     def T(self) -> np.ndarray:
@@ -81,7 +89,7 @@ class Molecule(BaseModel):
     @cached_property
     def H(self) -> np.ndarray:
         """The core Hamiltonian matrix, which is the sum of the kinetic energy and electron-nuclear attraction integrals."""
-        return self.T + self.V
+        return self.T + self.Vne
 
     @cached_property
     def Vee(self) -> np.ndarray:
@@ -116,6 +124,14 @@ class Molecule(BaseModel):
         """The Fock matrix, which is the sum of the core Hamiltonian and the electron-electron repulsion integrals."""
         # This is a placeholder implementation and should be replaced with the actual calculation of the Fock matrix from the core Hamiltonian and the electron-electron repulsion integrals.
         return self.H + np.zeros((len(self.orbitals), len(self.orbitals)))
+
+    @cached_property
+    def D0(self) -> float:
+        """The initial guess for the total electronic energy of the molecule, which is calculated from the core Hamiltonian and the density matrix."""
+        # F0 = np.transpose(self.S12) @ self.H @ self.S12
+        # eigv, C0 = np.linalg.eig(F0)
+        # C0 = self.S12 @ C0
+        # return C0
 
     def to_pyscf_coords(self) -> str:   
         """Convert the molecule's atomic coordinates to a format compatible with PySCF."""
