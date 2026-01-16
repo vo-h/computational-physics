@@ -40,6 +40,14 @@ int main(int argc, char *argv[]) {
 
     Molecule molecule = parse_molecule_from_file(filename, num_atoms);
     printf("Parsed molecule with %d atoms.\n", molecule.num_atoms);
+    /*Print out parsed atoms for debugging*/
+    for (int i = 0; i < molecule.num_atoms; i++) {
+        Atom atom = molecule.atoms[i];
+        printf("Atom %d: %s, Z=%d, coords=(%f, %f, %f), num_orbitals=%d\n", 
+            i+1, atom.atom, atom.Z, atom.coords[0], atom.coords[1], atom.coords[2], atom.num_orbitals);
+    }
+
+
     if (method != NULL && (strcmp(method, "overlap") == 0) || strcmp(method, "kinetic") == 0 || strcmp(method, "nuclear") == 0) {
         int num_orbitals = 0;
         for (int i = 0; i < molecule.num_atoms; i++) {
