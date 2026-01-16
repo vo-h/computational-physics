@@ -85,16 +85,23 @@ class Molecule(BaseModel):
 
     @cached_property
     def Vee(self) -> np.ndarray:
-        """The Coulomb matrix, which is calculated from the density matrix and the two-electron integrals."""
-        # This is a placeholder implementation and should be replaced with the actual calculation of the Coulomb matrix from the density matrix and the two-electron integrals.
+        """The electron-electron repulsion integrals (ij|kl) with 8-fold permutational symmetry."""
         V = np.zeros((len(self.orbitals), len(self.orbitals), len(self.orbitals), len(self.orbitals)))
         for i in range(len(self.orbitals)):
             for j in range(len(self.orbitals)):
                 for k in range(len(self.orbitals)):
                     for l in range(len(self.orbitals)):
-                        term = self.integrator.Vijkl(self.orbitals[i], self.orbitals[j], self.orbitals[k], self.orbitals[l])
-                        V[i,j,k,l] = V[j,i,l,k] = V[k,l,i,j] = V[l,k,j,i] = term
-                        V[k,j,i,l] = V[i,l,k,j] = V[l,i,j,k] = V[j,k,l,i] = term
+                        if (i*len(self.orbitals) + j) >= (k*len(self.orbitals) + l):
+                            term = self.integrator.Vijkl(self.orbitals[i], self.orbitals[j], self.orbitals[k], self.orbitals[l])
+                            # 8-fold symmetry: (ij|kl) = (ji|kl) = (ij|lk) = (ji|lk) = (kl|ij) = (kl|ji) = (lk|ij) = (lk|ji)
+                            V[i,j,k,l] = term
+                            V[j,i,k,l] = term
+                            V[i,j,l,k] = term
+                            V[j,i,l,k] = term
+                            V[k,l,i,j] = term
+                            V[k,l,j,i] = term
+                            V[l,k,i,j] = term
+                            V[l,k,j,i] = term
         return V
 
 
