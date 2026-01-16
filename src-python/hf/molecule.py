@@ -9,6 +9,7 @@ from tqdm import tqdm
 from hf.atom import Atom
 import numpy as np
 
+
 class Molecule(BaseModel):
     """Molecule class, which consists of multiple atoms."""
     model_config = ConfigDict(extra='forbid', arbitrary_types_allowed=True)
@@ -73,10 +74,8 @@ class Molecule(BaseModel):
         V = np.zeros((len(self.orbitals), len(self.orbitals)))
         for i in range(len(self.orbitals)):
             for j in range(i, len(self.orbitals)):
-                term = sum(-atom.Z * self.integrator.VijR(self.orbitals[i], self.orbitals[j], atom.coords) for atom in self.atoms)
-                V[i, j] = V[j, i] = term
+                V[i, j] = V[j, i] = sum(-atom.Z * self.integrator.VijR(self.orbitals[i], self.orbitals[j], atom.coords) for atom in self.atoms)
                 pbar.update(1 if i == j else 2)
-        pbar.close()
         return V
 
     @property
@@ -88,7 +87,15 @@ class Molecule(BaseModel):
     def J(self) -> np.ndarray:
         """The Coulomb matrix, which is calculated from the density matrix and the two-electron integrals."""
         # This is a placeholder implementation and should be replaced with the actual calculation of the Coulomb matrix from the density matrix and the two-electron integrals.
-        return np.zeros((len(self.orbitals), len(self.orbitals)))
+        V = np.zeros((len(self.orbitals), len(self.orbitals), len(self.orbitals), len(self.orbitals)))
+        for i in range(len(self.orbitals)):
+            for j in range(len(self.orbitals)):
+                for k in range(len(self.orbitals)):
+                    for l in range(len(self.orbitals)):
+                        term = self.integrator.Vijkl(self.orbitals[i], self.orbitals[j], self.orbitals[k], self.orbitals[l])
+                        V[i,j,k,l] = V[j,i,l,k] = V[k,l,i,j] = V[l,k,j,i] = term
+                        V[k,j,i,l] = V[i,l,k,j] = V[l,i,j,k] = V[j,k,l,i] = term
+        return V
 
     @property
     def K(self) -> np.ndarray:

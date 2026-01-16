@@ -8,7 +8,7 @@ import numpy as np
 from scipy.special import factorial2
 from functools import partial
 from hf.chebyshev import IntChebyshev
-
+from scipy.special import hyp1f1
 
 
 class STOGPrimitive(BaseModel):
@@ -148,8 +148,8 @@ class STOGIntegrator:
                 coeff, E_AB, _ = self.get_factors(orb1, orb2, u, v)
                 gto1 = orb1.gtos[u]
                 gto2 = orb2.gtos[v]
-
-                def func(t: float) -> float:
+                prefactor = 2 * math.pi / (gto1.alpha + gto2.alpha)
+                def integrand(t: float) -> float:
                     term1 = (gto1.alpha + gto2.alpha)*t**2
                     term2 = (gto1.alpha * np.array(gto1.coords) + gto2.alpha * np.array(gto2.coords)) / (gto1.alpha + gto2.alpha) - np.array(R)
                     term3 = np.dot(term2, term2)
@@ -157,25 +157,119 @@ class STOGIntegrator:
                     v_y = self.compute_integral_by_func(gto1, gto2, self.compute_nx, 'y', R=R, t=t)
                     v_z = self.compute_integral_by_func(gto1, gto2, self.compute_nx, 'z', R=R, t=t)
                     return 0.5 * math.exp(-term1*term3) * v_x * v_y * v_z
-                print("At t = 0.5, func(t) = ", func(0.5))
-                prefactor = 2 * math.pi / (gto1.alpha + gto2.alpha)
-                matrix[u, v] = coeff * E_AB * prefactor * self.cheby_shev_integrator.integrate(eps=1e-10, f=lambda x: func(0.5*(x+1)), m=50000)
+                matrix[u, v] = coeff * E_AB * prefactor * self.cheby_shev_integrator.integrate(eps=1e-10, f=lambda x: integrand(0.5*(x+1)), m=50000)
         output = float(np.sum(matrix).item()) + 1 - 1
         return 0.0 if math.isclose(output, 0.0) else output
 
-    def Jij(self, orb1: STOGOrbital, orb2: STOGOrbital) -> float:
-        """Calculate the Coulomb integral between two STO-nG orbitals."""
-        pass
+    def Vijkl(self, orb1: STOGOrbital, orb2: STOGOrbital, orb3: STOGOrbital, orb4: STOGOrbital) -> float:
+        """Calculate the Coulomb repulsion integral between two STO-nG orbitals."""
+        
+        matrix = np.zeros((len(orb1.cc), len(orb2.cc), len(orb3.cc), len(orb4.cc)))
+        for m, cc1 in enumerate(orb1.cc):
+            for n, cc2 in enumerate(orb2.cc):
+                for u, cc3 in enumerate(orb3.cc):
+                    for v, cc4 in enumerate(orb4.cc):
+                        gto1 = orb1.gtos[m]
+                        gto2 = orb2.gtos[n]
+                        gto3 = orb3.gtos[u]
+                        gto4 = orb4.gtos[v]
 
-    def Kij(self, orb1: STOGOrbital, orb2: STOGOrbital) -> float:
-        """Calculate the exchange integral between two STO-nG orbitals."""
-        pass
+                        norms = gto1.N * gto2.N * gto3.N * gto4.N
+                        coefs = cc1 * cc2 * cc3 * cc3 * cc4
+                        matrix[m, n, u, v] = norms * coefs * self.compute_repulsion(gto1, gto2, gto3, gto4)
+        output = float(np.sum(matrix).item()) + 1 - 1
+        return 0.0 if math.isclose(output, 0.0) else output
+                        
+    def compute_repulsion(self, gto1: STOGPrimitive, gto2: STOGPrimitive, gto3: STOGPrimitive, gto4: STOGPrimitive) -> float:
+        """Calculate the electron-electron repulsion integral between two STO-nG orbitals. https://joshuagoings.com/2017/04/28/integrals/"""
+        p = gto1.alpha + gto2.alpha
+        q = gto3.alpha + gto4.alpha
+        alpha = p * q / (p + q)
+        P = [self.compute_Pi(gto1, gto2, component) for component in ['x', 'y', 'z']]
+        Q = [self.compute_Pi(gto3, gto4, component) for component in ['x', 'y', 'z']]
+        RPQ = np.linalg.norm(np.array(P) - np.array(Q))
 
-    def compute_tx(self, A: float, B: float, P: float, alpha: float, beta: float, ai: int, bi: int) -> float:
+        def boys(n,T):
+            return hyp1f1(n+0.5,n+1.5,-T)/(2.0*n+1.0) 
+
+        def compute_R(t,u,v,n,p):
+            PCx = P[0] - Q[0]
+            PCy = P[1] - Q[1]
+            PCz = P[2] - Q[2]
+
+            T = p*RPQ*RPQ
+            val = 0.0
+            if t == u == v == 0:
+                val += np.power(-2*p,n)*boys(n,T)
+            elif t == u == 0:
+                if v > 1:
+                    val += (v-1)*compute_R(t,u,v-2,n+1,p)
+                val += PCz*compute_R(t,u,v-1,n+1,p)
+            elif t == 0:
+                if u > 1:
+                    val += (u-1)*compute_R(t,u-2,v,n+1,p)
+                val += PCy*compute_R(t,u-1,v,n+1,p)
+            else:
+                if t > 1:
+                    val += (t-1)*compute_R(t-2,u,v,n+1,p)
+                val += PCx*compute_R(t-1,u,v,n+1,p)
+            return val
+        
+        def compute_E(i,j,t,Qx,a,b):
+            p = a + b
+            q = a*b/p
+            if (t < 0) or (t > (i + j)):
+                # out of bounds for t  
+                return 0.0
+            elif i == j == t == 0:
+                # base case
+                return np.exp(-q*Qx*Qx) # K_AB
+            elif j == 0:
+                # decrement index i
+                return (1/(2*p))*compute_E(i-1,j,t-1,Qx,a,b) - \
+                    (q*Qx/a)*compute_E(i-1,j,t,Qx,a,b)    + \
+                    (t+1)*compute_E(i-1,j,t+1,Qx,a,b)
+            else:
+                # decrement index j
+                return (1/(2*p))*compute_E(i,j-1,t-1,Qx,a,b) + \
+                    (q*Qx/b)*compute_E(i,j-1,t,Qx,a,b)    + \
+                    (t+1)*compute_E(i,j-1,t+1,Qx,a,b)
+
+        val = 0.0
+        for t in range(gto1.nx+gto2.nx+1):
+            for u in range(gto1.ny+gto2.ny+1):
+                for v in range(gto1.nz+gto2.nz+1):
+                    for tau in range(gto3.nx+gto4.nx+1):
+                        for nu in range(gto3.ny+gto4.ny+1):
+                            for phi in range(gto3.nz+gto4.nz+1):
+                                term1 = compute_E(gto1.nx, gto2.nx, t, gto1.coords[0] - gto2.coords[0], gto1.alpha, gto2.alpha)
+                                term2 = compute_E(gto1.ny, gto2.ny, u, gto1.coords[0] - gto2.coords[0], gto1.alpha, gto2.alpha)
+                                term3 = compute_E(gto1.nz, gto2.nz, v, gto1.coords[0] - gto2.coords[0], gto1.alpha, gto2.alpha)
+                                term4 = compute_E(gto3.nx, gto4.nx, tau, gto3.coords[0] - gto4.coords[0], gto3.alpha, gto4.alpha)
+                                term5 = compute_E(gto3.ny, gto4.ny, nu, gto3.coords[0] - gto4.coords[0], gto3.alpha, gto4.alpha)
+                                term6 = compute_E(gto3.nz, gto4.nz, phi, gto3.coords[0] - gto4.coords[0], gto3.alpha, gto4.alpha)
+
+                                # term1 = self.compute_sx(A=gto1.coords[0], B=gto2.coords[0], alpha=gto1.alpha, beta=gto2.alpha, ai=gto1.nx, bi=gto2.nx)
+                                # term2 = self.compute_sx(A=gto1.coords[1], B=gto2.coords[1], alpha=gto1.alpha, beta=gto2.alpha, ai=gto1.ny, bi=gto2.ny)
+                                # term3 = self.compute_sx(A=gto1.coords[2], B=gto2.coords[2], alpha=gto1.alpha, beta=gto2.alpha, ai=gto1.nz, bi=gto2.nz)
+                                # term4 = self.compute_sx(A=gto3.coords[0], B=gto4.coords[0], alpha=gto3.alpha, beta=gto4.alpha, ai=gto3.nx, bi=gto4.nx)
+                                # term5 = self.compute_sx(A=gto3.coords[1], B=gto4.coords[1], alpha=gto3.alpha, beta=gto4.alpha, ai=gto3.ny, bi=gto4.ny)
+                                # term6 = self.compute_sx(A=gto3.coords[2], B=gto4.coords[2], alpha=gto3.alpha, beta=gto4.alpha, ai=gto3.nz, bi=gto4.nz)
+                                
+                                term7 = np.power(-1, tau+nu+phi)
+                                term8 = compute_R(t+tau, u+nu, v+phi, 0, alpha)
+                                val += term1*term2*term3*term4*term5*term6*term7*term8
+        prefactor = 2 * math.pi**(5/2) / (p * q * math.sqrt(p + q))
+        return prefactor * val
+
+
+
+    def compute_tx(self, A: float, B: float, alpha: float, beta: float, ai: int, bi: int) -> float:
         """Calculate the integal between 2 Gaussion primitives in a given direction for the kinetic energy integral.
         https://content.wolfram.com/sites/19/2013/01/Ho_Kinetic.pdf"""
 
-        si = partial(self.compute_sx, A=A, B=B, P=P, alpha=alpha, beta=beta)
+        P = (alpha*A + beta*B) / (alpha+beta)
+        si = partial(self.compute_sx, A=A, B=B, alpha=alpha, beta=beta)
         if ai < 0 or bi < 0:
             return 0
         if alpha == 0 and beta == 0:
@@ -190,9 +284,10 @@ class STOGIntegrator:
         term4 = 4*alpha*beta*si(ai=ai+1,bi=bi+1)
         return 0.5*(term1-term2-term3+term4)
 
-    def compute_nx(self, A: float, B: float, P: float, alpha: float, beta: float, ai: int, bi: int, t: float, R: float) -> float:
+    def compute_nx(self, A: float, B: float, alpha: float, beta: float, ai: int, bi: int, t: float, R: float) -> float:
         """https://content.wolfram.com/sites/19/2014/12/Ho_Nuclear.pdf"""
-        func = partial(self.compute_nx, A=A, B=B, P=P, alpha=alpha, beta=beta, t=t, R=R)
+        P = (alpha*A + beta*B) / (alpha+beta)
+        func = partial(self.compute_nx, A=A, B=B, alpha=alpha, beta=beta, t=t, R=R)
         if ai < 0 or bi < 0:
             return 0
         if (ai, bi) == (0, 0):
@@ -231,8 +326,9 @@ class STOGIntegrator:
         else:  # component == 'z'
             return (gto1.alpha * gto1.coords[2] + gto2.alpha * gto2.coords[2]) / alpha_sum
         
-    def compute_sx(self, A: float, B: float, P: float, alpha: float, beta: float, ai: int, bi: int) -> float:
+    def compute_sx(self, A: float, B: float, alpha: float, beta: float, ai: int, bi: int) -> float:
         """Calculate the integral of the product of two GTOs in a given component."""
+        P = (alpha*A + beta*B) / (alpha+beta)
 
         if ai < 0 or bi < 0:
             return 0
@@ -241,7 +337,7 @@ class STOGIntegrator:
         if (ai, bi) == (1, 0):
             return -(A-P)
         
-        func = partial(self.compute_sx, A=A, B=B, P=P, alpha=alpha, beta=beta)
+        func = partial(self.compute_sx, A=A, B=B, alpha=alpha, beta=beta)
         if ai > 1 and bi == 0:
             return -(A-P)*func(ai=ai-1, bi=0) + ((ai-1)/(2*alpha + 2*beta)) * func(ai=ai-2, bi=0)
         return func(ai=ai+1, bi=bi-1) + (A-B)*func(ai=ai, bi=bi-1)
@@ -250,13 +346,12 @@ class STOGIntegrator:
         """Compute the integral between two GTO primitives in a given component using the specified function."""
         A = getattr(gto1, f"coords")[['x', 'y', 'z'].index(component)]
         B = getattr(gto2, f"coords")[['x', 'y', 'z'].index(component)]
-        P = self.compute_Pi(gto1, gto2, component)
         ai = getattr(gto1, f"n{component}")
         bi = getattr(gto2, f"n{component}")
         if R is not None:
             Ri = R[['x', 'y', 'z'].index(component)]
-            return func(A, B, P, gto1.alpha, gto2.alpha, ai, bi, R=Ri, **kwargs)
-        return func(A, B, P, gto1.alpha, gto2.alpha, ai, bi, **kwargs)
+            return func(A, B, gto1.alpha, gto2.alpha, ai, bi, R=Ri, **kwargs)
+        return func(A, B, gto1.alpha, gto2.alpha, ai, bi, **kwargs)
     
     def get_factors(self, orb1: STOGOrbital, orb2: STOGOrbital, u: int, v: int) -> tuple[float, float, float]:
         """Calculate the common factors for the integrals between two GTO primitives."""
@@ -264,3 +359,4 @@ class STOGIntegrator:
         E_AB = self.compute_E_AB(orb1.gtos[u], orb2.gtos[v])
         prefactor = (math.pi / (orb1.gtos[u].alpha + orb2.gtos[v].alpha)) ** (3 / 2)
         return coeff, E_AB, prefactor
+    
