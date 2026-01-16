@@ -156,8 +156,8 @@ double abscissa(int n, int i) {
 
 double omega(int n, int i) {
     /*Calculate the weight for the i-th point in an n-point Chebyshev quadrature.*/
-    double term0 = i + (M_PI / (n + 1));
-    return (16/3.0*(n+1)) * pow(sin(term0), 4);
+    double term0 = i * (M_PI / (n + 1));
+    return (16 / (3.0 * (n+1))) * pow(sin(term0), 4);
 }
 
 double int_chebyshev(double eps, int m, STOPrimitive gto1, STOPrimitive gto2, double *R) {
