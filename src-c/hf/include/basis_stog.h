@@ -18,8 +18,11 @@ typedef struct {
 
 double compute_N(double alpha, int *n);
 
-/*Function to compute the overlap integral matrix: https://content.wolfram.com/sites/19/2012/02/Ho.pdf*/
-double compute_Sij(STOOrbital orbital1, STOOrbital orbital2);
+double compute_Sij(STOOrbital orbital1, STOOrbital orbital2); /*https://content.wolfram.com/sites/19/2012/02/Ho.pdf*/
 double compute_Tij(STOOrbital orbital1, STOOrbital orbital2);
+double compute_Vij(STOOrbital orbital1, STOOrbital orbital2);
+
+double compute_Jijkl(STOOrbital orbital1, STOOrbital orbital2, STOOrbital orbital3, STOOrbital orbital4);
+double compute_Kijkl(STOOrbital orbital1, STOOrbital orbital2, STOOrbital orbital3, STOOrbital orbital4);
 
 #endif

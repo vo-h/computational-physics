@@ -79,7 +79,7 @@ double compute_tx(double A, double B, double alpha, double beta, int ai, int bi)
     double term2 = 2*ai*beta*compute_sx(A, B, alpha, beta, ai-1, bi+1);
     double term3 = 2*bi*alpha*compute_sx(A, B, alpha, beta, ai+1, bi-1);
     double term4 = 4*alpha*beta*compute_sx(A, B, alpha, beta, ai+1, bi+1);
-    return 0.5*(term1 + term2 + term3 + term4);
+    return 0.5*(term1 - term2 - term3 + term4);
 }
 
 double compute_Tij(STOOrbital orbital1, STOOrbital orbital2) {
