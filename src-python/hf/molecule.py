@@ -121,18 +121,12 @@ class Molecule(BaseModel):
 
     @property
     def C0(self) -> np.ndarray:
-        """The initial guess for the coefficients of the molecular orbitals, which are obtained by diagonalalizing the initial Fock matrix."""
+        """The initial guess for the coefficients of the molecular orbitals."""
         eigv, C0 = np.linalg.eig(self.F0)
-        
-        # Order the eigenvalues and eigenvectors in ascending order of eigenvalues
-        idx = np.argsort(eigv)
-        eigv = eigv[idx]
-        C0 = C0[:, idx]
-
-        # Transform the eigenvectors back to the original basis
-        C0 = self.S12 @ C0
-        C0 = np.where(np.isclose(C0, 0.0), 0.0, C0)
-        return C0
+        idx = np.argsort(eigv) # Order the eigenvalues and eigenvectors in ascending order of eigenvalues
+        eigv, C0 = eigv[idx], C0[:, idx]
+        C0 = self.S12 @ C0 # Transform the eigenvectors back to the original basis
+        return np.where(np.isclose(C0, 0.0), 0.0, C0)
 
     @property
     def D0(self) -> np.ndarray:
@@ -161,38 +155,17 @@ class Molecule(BaseModel):
         """Perform the Hartree-Fock self-consistent field (SCF) procedure to optimize the coefficients of the molecular orbitals."""
         
         occ = math.ceil(sum(atom.Z for atom in self.atoms) / 2)
-        F = self.F0
         D = self.D0
         E = self.E0
-
         print(f"Iteration 00: Energy = {E:.12f} Hartree")
         for i in tqdm(range(1, max_iter), desc="SCF Iteration"):
-            
-            # Compute new Fock matrix in AO basis using tensor contraction
-            F_AO = self.H + np.einsum('ls,uvls->uv', D, 2*self.Vee) - np.einsum('ls,ulvs->uv', D, self.Vee)
-            F_AO = np.where(np.isclose(F_AO, 0.0), 0.0, F_AO)
-            
-            # Orthogonalize Fock matrix
-            F_ortho = self.S12.T @ F_AO @ self.S12
-            
-            # Diagonalize Fock matrix
-            eigv, C = np.linalg.eig(F_ortho)
-            
-            # Sort eigenvalues and eigenvectors
-            idx = np.argsort(eigv)
-            eigv = eigv[idx]
-            C = C[:, idx]
-            
-            # Transform eigenvectors back to original basis
-            C = self.S12 @ C
-            
-            # Build new density matrix
-            D = C[:, :occ] @ C[:, :occ].T
-            
-            # Compute new electronic energy: E = Σ D[μ,ν] * (H[μ,ν] + F[μ,ν])
-            # Note: The factor of 2 for spin is NOT included here because F already 
-            # accounts for all electrons through the density matrix D
-            E_new = np.sum(D * (self.H + F_AO))
+            F = self.H + np.einsum('ls,uvls->uv', D, 2*self.Vee) - np.einsum('ls,ulvs->uv', D, self.Vee) # Compute new Fock matrix in AO basis using tensor contraction
+            eigv, C = np.linalg.eig(self.S12.T @ F @ self.S12) # Orthogonalize & Diagonalize Fock matrix
+            idx = np.argsort(eigv) # Sort eigenvalues and eigenvectors
+            eigv, C = eigv[idx], C[:, idx]
+            C = self.S12 @ C # Transform eigenvectors back to original basis
+            D = C[:, :occ] @ C[:, :occ].T # Build new density matrix
+            E_new = np.sum(D * (self.H + F)) # Compute new energy
             if abs(E_new - E) < delta:
                 print(f"SCF converged in {i} iterations with energy: {E_new:.6f} Hartree")
                 break
