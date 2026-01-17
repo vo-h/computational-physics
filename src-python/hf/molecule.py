@@ -165,20 +165,34 @@ class Molecule(BaseModel):
         D = self.D0
         E = self.E0
 
-        print(f"Iteration 0: Energy = {E:.6f} Hartree, ΔE = - Hartree")
+        print(f"Iteration 00: Energy = {E:.12f} Hartree")
         for i in tqdm(range(1, max_iter), desc="SCF Iteration"):
             
-            # Compute new Fock matrix using tensor contraction
-            F = self.H + np.einsum('ls,uvls->uv', D, 2*self.Vee) - np.einsum('ls,ulvs->uv', D, self.Vee)
-            F = np.where(np.isclose(F, 0.0), 0.0, F)
-            F = self.S12.T @ F @ self.S12 # Orthogonalize Fock matrix
-            eigv, C = np.linalg.eig(F) # Diagonalize Fock matrix
-            idx = np.argsort(eigv) # Sort eigenvalues and eigenvectors
+            # Compute new Fock matrix in AO basis using tensor contraction
+            F_AO = self.H + np.einsum('ls,uvls->uv', D, 2*self.Vee) - np.einsum('ls,ulvs->uv', D, self.Vee)
+            F_AO = np.where(np.isclose(F_AO, 0.0), 0.0, F_AO)
+            
+            # Orthogonalize Fock matrix
+            F_ortho = self.S12.T @ F_AO @ self.S12
+            
+            # Diagonalize Fock matrix
+            eigv, C = np.linalg.eig(F_ortho)
+            
+            # Sort eigenvalues and eigenvectors
+            idx = np.argsort(eigv)
             eigv = eigv[idx]
             C = C[:, idx]
-            C = self.S12 @ C # Transform eigenvectors back to original basis
+            
+            # Transform eigenvectors back to original basis
+            C = self.S12 @ C
+            
+            # Build new density matrix
             D = C[:, :occ] @ C[:, :occ].T
-            E_new = np.sum(D * (self.H + F)) # Compute new energy
+            
+            # Compute new electronic energy: E = Σ D[μ,ν] * (H[μ,ν] + F[μ,ν])
+            # Note: The factor of 2 for spin is NOT included here because F already 
+            # accounts for all electrons through the density matrix D
+            E_new = np.sum(D * (self.H + F_AO))
             if abs(E_new - E) < delta:
                 print(f"SCF converged in {i} iterations with energy: {E_new:.6f} Hartree")
                 break
