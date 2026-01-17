@@ -248,18 +248,17 @@ class STOGIntegrator:
         Qx = A - B
         if (t < 0) or (t > (ai + bi)):
             return 0.0
-        elif ai == bi == t == 0:
+        if ai == bi == t == 0:
             return np.exp(-q*Qx**2)
-        elif bi == 0:
+        if bi == 0:
             # decrement index i
             return (1/(2*p))*self.compute_E(ai-1,bi,t-1,A,B,alpha,beta) - \
                 (q*Qx/alpha)*self.compute_E(ai-1,bi,t,A,B,alpha,beta)    + \
                 (t+1)*self.compute_E(ai-1,bi,t+1,A,B,alpha,beta)
-        else:
-            # decrement index j
-            return (1/(2*p))*self.compute_E(ai,bi-1,t-1,A,B,alpha,beta) + \
-                (q*Qx/beta)*self.compute_E(ai,bi-1,t,A,B,alpha,beta)    + \
-                (t+1)*self.compute_E(ai,bi-1,t+1,A,B,alpha,beta)
+        # decrement index j
+        return (1/(2*p))*self.compute_E(ai,bi-1,t-1,A,B,alpha,beta) + \
+            (q*Qx/beta)*self.compute_E(ai,bi-1,t,A,B,alpha,beta)    + \
+            (t+1)*self.compute_E(ai,bi-1,t+1,A,B,alpha,beta)
 
     def boys(self, n: int, T: float) -> float:
         return hyp1f1(n+0.5,n+1.5,-T)/(2.0*n+1.0) 
@@ -347,22 +346,3 @@ class STOGIntegrator:
         E_AB = self.compute_E_AB(orb1.gtos[u], orb2.gtos[v])
         prefactor = (math.pi / (orb1.gtos[u].alpha + orb2.gtos[v].alpha)) ** (3 / 2)
         return coeff, E_AB, prefactor
-    
-    #### Archived methods #### --- IGNORE ---
-    def compute_nx(self, A: float, B: float, alpha: float, beta: float, ai: int, bi: int, t: float, R: float) -> float:
-        """https://content.wolfram.com/sites/19/2014/12/Ho_Nuclear.pdf"""
-        P = (alpha*A + beta*B) / (alpha+beta)
-        func = partial(self.compute_nx, A=A, B=B, alpha=alpha, beta=beta, t=t, R=R)
-        if ai < 0 or bi < 0:
-            return 0
-        if (ai, bi) == (0, 0):
-            return 1
-        if (ai, bi) == (1, 0):
-            result = -(A-P) - t**2*(P-R)
-            return result
-        if bi == 0:
-            term1 = -(A-P)
-            term2 = -t**2 * (P-R) * func(ai=ai-1, bi=0)
-            term3 = (ai-1)/(2*alpha + 2*beta) * (1-t**2) * func(ai=ai-2, bi=0)
-            return term1 + term2 + term3
-        return func(ai=ai+1, bi=bi-1) + (A-B)*func(ai=ai, bi=bi-1)

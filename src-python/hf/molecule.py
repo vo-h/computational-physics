@@ -1,5 +1,3 @@
-from xml.dom.minidom import Element
-from scipy.integrate import tplquad
 import math
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from hf.basis_stog import STOGOrbital, STOGIntegrator
@@ -9,19 +7,31 @@ from tqdm import tqdm
 from hf.atom import Atom
 import numpy as np
 from functools import cached_property
+import logging
+from typing import Self
+
+logger = logging.getLogger(__name__)
 
 class Molecule(BaseModel):
     """Molecule class, which consists of multiple atoms."""
     model_config = ConfigDict(extra='forbid', arbitrary_types_allowed=True)
     atoms: list[Atom]
     C: np.ndarray = Field(default_factory=lambda: np.array([]), description="The coefficients to be optimized during the SCF procedure.")
-
+    F: np.ndarray = Field(default_factory=lambda: np.array([]), description="The Fock matrix to be optimized during the SCF procedure.")
+    E: float = Field(default=0.0, description="The electronic energy of the molecule, which is optimized during the SCF procedure.")
 
     @model_validator(mode="after")
     def validate_basis_consistency(self):
         bases = set(atom.basis for atom in self.atoms)
         if len(bases) > 1:
             raise ValueError(f"All atoms in the molecule must have the same basis set. Found the following basis sets: {', '.join(bases)}.")
+        return self
+    
+    @model_validator(mode="after")
+    def check_electron_count(self):
+        total_electrons = sum(atom.Z for atom in self.atoms)
+        if total_electrons % 2 != 0:
+            raise ValueError(f"The molecule has an odd number of electrons ({total_electrons}), which is not supported by the current implementation. Please use a molecule with an even number of electrons.")
         return self
 
     @property
@@ -147,18 +157,45 @@ class Molecule(BaseModel):
         """Convert the molecule's atomic coordinates to a format compatible with PySCF."""
         return ";".join(f"{atom.atom} {atom.coords[0]} {atom.coords[1]} {atom.coords[2]}" for atom in self.atoms)
     
+    @classmethod
+    def from_file(cls, file_path: str) -> Self:
+        """Create a Molecule object from an input file. The file should contain the atomic symbols and coordinates in the following format:
+        
+        C   0.000000    0.000000    0.000000    STO-3G
+        H   0.000000    0.000000    1.089000    STO-3G
+        H   1.026719    0.000000   -0.363000    STO-3G
+        H  -0.513360   -0.889165   -0.363000    STO-3G
+        H  -0.513360    0.889165   -0.363000    STO-3G
+        
+        Each line corresponds to an atom, with the atomic symbol followed by the x, y, z coordinates in Angstroms and a basis set.
+        """
+        atoms = []
+        with open(file_path, 'r') as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) != 5:
+                    raise ValueError(f"Invalid line in input file: {line.strip()}. Each line must contain an atomic symbol followed by three coordinates and a basis set.")
+                atom_symbol = parts[0]
+                coords = tuple(float(coord) for coord in parts[1:4])
+                basis_set = parts[4]
+                atoms.append(Atom(atom=atom_symbol, coords=coords, basis_set=basis_set))
+        return cls(atoms=atoms)
+
     def __call__(self, x: float, y: float, z: float) -> np.ndarray:
         """Evaluate the orbitals of the atom at a given point (x, y, z)."""
         return np.array([orb(x, y, z) for orb in self.orbitals])
     
-    def HF(self, delta: float = 1e-12, max_iter: int = 100):
+    def CHF(self, delta: float = 1e-12, max_iter: int = 100):
         """Perform the Hartree-Fock self-consistent field (SCF) procedure to optimize the coefficients of the molecular orbitals."""
         
         occ = math.ceil(sum(atom.Z for atom in self.atoms) / 2)
         D = self.D0
         E = self.E0
-        print(f"Iteration 00: Energy = {E:.12f} Hartree")
-        for i in tqdm(range(1, max_iter), desc="SCF Iteration"):
+
+        for i in tqdm(range(max_iter), desc="SCF Iteration"):
+            if i == 0:
+                logger.info(f"Iteration 00: Energy = {E:.12f} Hartree")
+                continue
             F = self.H + np.einsum('ls,uvls->uv', D, 2*self.Vee) - np.einsum('ls,ulvs->uv', D, self.Vee) # Compute new Fock matrix in AO basis using tensor contraction
             eigv, C = np.linalg.eig(self.S12.T @ F @ self.S12) # Orthogonalize & Diagonalize Fock matrix
             idx = np.argsort(eigv) # Sort eigenvalues and eigenvectors
@@ -167,14 +204,22 @@ class Molecule(BaseModel):
             D = C[:, :occ] @ C[:, :occ].T # Build new density matrix
             E_new = np.sum(D * (self.H + F)) # Compute new energy
             if abs(E_new - E) < delta:
-                print(f"SCF converged in {i} iterations with energy: {E_new:.6f} Hartree")
+                logger.info(f"SCF converged in {i} iterations with energy: {E_new:.6f} Hartree")
                 break
-            else:
-                print(f"Iteration {i}: Energy = {E_new:.6f} Hartree, ΔE = {E_new - E:.6e} Hartree")
+            logger.info(f"Iteration {i}: Energy = {E_new:.6f} Hartree, ΔE = {E_new - E:.6e} Hartree")
             E = E_new
         self.C = C
+        self.F = F
+        self.E = E_new
+
+    def gradients(self) -> np.ndarray:
+        """Calculate the nuclear gradients of the molecule."""
+        return np.zeros((len(self.atoms), 3))
+    
+    def hessian(self) -> np.ndarray:    
+        """Calculate the nuclear Hessian of the molecule."""
+        return np.zeros((len(self.atoms), 3, 3))
 
     def optimize(self):
         """Optimize the geometry of the molecule."""
-        # This is a placeholder implementation and should be replaced with the actual implementation of an optimization algorithm to optimize the geometry of the molecule.
         pass
