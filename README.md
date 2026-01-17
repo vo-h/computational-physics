@@ -1,7 +1,15 @@
 
 # General Computational Physics/Chemistry Code
 
-Current state: Hartree-Fock. Efficient code for computing the overlap, kinetic energy, and nuclear attraction matrices for a molecule using the STO-nG basis set already implemented. The code is structured in a way that allows for easy extension to other types of basis sets and integrals.
+
+| First Header  | Second Header |
+| ------------- | ------------- |
+| Content Cell  | Content Cell  |
+| Content Cell  | <progress value="75" max="100"></progress> |
+
+
+<progress value="75" max="100"></progress>
+
 
 # Resource(s)
 * [Project Ideas in Computational Physics/Chemistry](https://github.com/CrawfordGroup/ProgrammingProjects)
@@ -14,5 +22,6 @@ Current state: Hartree-Fock. Efficient code for computing the overlap, kinetic e
         * [Analytical Evaluation of Nuclear Attraction Integrals](https://content.wolfram.com/sites/19/2014/12/Ho_Nuclear.pdf)
         * [Survey on Integral Evaluation Methods](https://rsc.anu.edu.au/~pgill/papers/045Review.pdf)
     * [PySCF](https://pyscf.org/) & [Associated Tutorials](https://pyscf.org/pyscf_tutorials/index.html) for comparing results against.
+* https://kthpanor.github.io/echem/docs/mol_struct/hessians.html
 
 
