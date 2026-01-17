@@ -33,13 +33,13 @@ def test_kinetic_symmetry(molecule: Molecule):
     assert np.allclose(T, T.T, atol=1e-10)
 
 
-def test_kinetic_values(molecule, expected_kinetic):
+def test_kinetic_values(molecule: Molecule, expected_kinetic: np.ndarray):
     """Test that the kinetic energy matrix values match the expected values."""
     # Relaxed tolerance due to potential geometry or implementation differences
     np.testing.assert_allclose(molecule.T, expected_kinetic, rtol=0.1, atol=0.1)
 
 
-def test_kinetic_positive_diagonal(molecule):
+def test_kinetic_positive_diagonal(molecule: Molecule):
     """Test that the diagonal elements of the kinetic energy matrix are positive."""
     T = molecule.T
     diagonal = np.diag(T)
