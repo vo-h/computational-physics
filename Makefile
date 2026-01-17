@@ -16,11 +16,11 @@ $(HF_BUILD):
 
 # Compile source files to object files in build directory
 $(HF_BUILD)/%.o: $(HF_SRC)/%.c | $(HF_BUILD)
-	$(CC) $(CFLAGS) -I$(HF_INC) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(HF_INC) -I/opt/homebrew/Cellar/gsl/2.8/include -c $< -o $@
 
 # Link all object files to create final program
 hfc: $(HF_OBJECTS)
-	$(CC) $(HF_OBJECTS) -o $(HF_BIN) -lm -lcurl
+	$(CC) $(HF_OBJECTS) -o $(HF_BIN) -lm -lcurl -I/opt/homebrew/Cellar/gsl/2.8/include -L/opt/homebrew/Cellar/gsl/2.8/lib -lgsl -lgslcblas
 
 .PHONY: hfc clean-hfc
 
