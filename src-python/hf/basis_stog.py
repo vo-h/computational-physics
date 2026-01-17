@@ -145,7 +145,6 @@ class STOGIntegrator:
         matrix = np.zeros((n, m))
         for u, cc1 in enumerate(orb1.cc):
             for v, cc2 in enumerate(orb2.cc):
-                # coeff, E_AB, _ = self.get_factors(orb1, orb2, u, v)
                 gto1 = orb1.gtos[u]
                 gto2 = orb2.gtos[v]
                 matrix[u, v] = gto1.N*gto2.N*cc1*cc2*self.compute_nuclear_attraction(gto1, gto2, R)
