@@ -14,7 +14,7 @@ class Atom(BaseModel):
     """Atom class, which consists of multiple orbitals."""
     atom: str
     coords: tuple[float, float, float] = (0.0, 0.0, 0.0)  # (X, Y, Z)
-    coords_units: Literal['Angstrom', 'Bohr'] = 'Angstrom'
+    coords_units: Literal['Angstrom', 'Bohr'] = 'Bohr'
     basis: Annotated[str, Field(pattern=r"STO-[2-6]G")] = "STO-3G"
 
     @cached_property

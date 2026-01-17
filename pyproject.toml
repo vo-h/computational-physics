@@ -7,18 +7,20 @@ name = "comp-physics"
 version = "0.1.0"
 description = "Computational physics tools for quantum chemistry and molecular dynamics"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
-    "numpy",
-    "sympy",
-    "scipy",
-    "pandas",
-    "ipykernel",
-    "pydantic",
-    "plotly",
-    "nbformat",
-    "basis-set-exchange",
-    "mendeleev",
+    "numpy==2.4.0",
+    "sympy==1.14.0",
+    "scipy==1.16.3",
+    "pandas==2.3.3",
+    "ipykernel==7.1.0",
+    "pydantic==2.12.5",
+    "plotly==6.5.1",
+    "nbformat==5.10.4",
+    "basis_set_exchange==0.11",
+    "mendeleev==1.1.0",
+    "click==8.3.1",
+    "pytest==9.0.2"
 ]
 
 [project.optional-dependencies]
@@ -28,8 +30,18 @@ dev = [
     "flake8",
 ]
 
+[project.scripts]
+hf = "hf.cli:hf"
+
 [tool.setuptools.packages.find]
 where = ["src-python"]
 
 [tool.setuptools.package-data]
 "*" = ["*.txt", "*.csv", "*.xyz"]
+
+[tool.pytest.ini_options]
+testpaths = ["src-python/tests"]
+pythonpath = ["src-python"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

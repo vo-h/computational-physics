@@ -161,11 +161,11 @@ class Molecule(BaseModel):
     def from_file(cls, file_path: str) -> Self:
         """Create a Molecule object from an input file. The file should contain the atomic symbols and coordinates in the following format:
         
-        C   0.000000    0.000000    0.000000    STO-3G
-        H   0.000000    0.000000    1.089000    STO-3G
-        H   1.026719    0.000000   -0.363000    STO-3G
-        H  -0.513360   -0.889165   -0.363000    STO-3G
-        H  -0.513360    0.889165   -0.363000    STO-3G
+        C   0.000000    0.000000    0.000000    6   STO-3G
+        H   0.000000    0.000000    1.089000    1   STO-3G
+        H   1.026719    0.000000   -0.363000    1   STO-3G
+        H  -0.513360   -0.889165   -0.363000    1   STO-3G
+        H  -0.513360    0.889165   -0.363000    1   STO-3G
         
         Each line corresponds to an atom, with the atomic symbol followed by the x, y, z coordinates in Angstroms and a basis set.
         """
@@ -173,11 +173,11 @@ class Molecule(BaseModel):
         with open(file_path, 'r') as f:
             for line in f:
                 parts = line.split()
-                if len(parts) != 5:
+                if len(parts) != 6:
                     raise ValueError(f"Invalid line in input file: {line.strip()}. Each line must contain an atomic symbol followed by three coordinates and a basis set.")
                 atom_symbol = parts[0]
                 coords = tuple(float(coord) for coord in parts[1:4])
-                basis_set = parts[4]
+                basis_set = parts[5]
                 atoms.append(Atom(atom=atom_symbol, coords=coords, basis_set=basis_set))
         return cls(atoms=atoms)
 
