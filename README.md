@@ -1,15 +1,6 @@
 
 # General Computational Physics/Chemistry Code
-
-
-| First Header  | Second Header |
-| ------------- | ------------- |
-| Content Cell  | Content Cell  |
-| Content Cell  | <progress value="75" max="100"></progress> |
-
-
-<progress value="75" max="100"></progress>
-
+This repository contains a Python implementation of the Hartree-Fock method for molecular calculations. The code is structured to allow for easy extension to other molecules by modifying the input parameters.
 
 # Resource(s)
 * [Project Ideas in Computational Physics/Chemistry](https://github.com/CrawfordGroup/ProgrammingProjects)
