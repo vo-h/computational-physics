@@ -164,6 +164,8 @@ class Molecule(BaseModel):
         F = self.F0
         D = self.D0
         E = self.E0
+
+        print(f"Iteration 0: Energy = {E:.6f} Hartree, ΔE = - Hartree")
         for i in tqdm(range(1, max_iter), desc="SCF Iteration"):
             
             # Compute new Fock matrix using tensor contraction
