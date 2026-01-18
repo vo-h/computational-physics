@@ -20,5 +20,6 @@ gsl_matrix *compute_C0(Molecule *molecule, int num_orbitals);
 gsl_matrix *compute_D0(Molecule *molecule, int num_orbitals);
 gsl_matrix *compute_F(gsl_matrix *H, gsl_matrix *D, tensor4d *Vee);
 double compute_E0(Molecule *molecule, int num_orbitals);
+void execute_closed_shell_hf(Molecule *molecule, double delta, size_t max_iter);
 
 #endif

@@ -284,3 +284,73 @@ gsl_matrix *compute_F(gsl_matrix *H, gsl_matrix *D, tensor4d *Vee) {
     }
     return F;
 }
+
+double compute_electronic_energy(gsl_matrix *D, gsl_matrix *H, gsl_matrix *F) {
+    /*Compute the total energy E using the formula E = 0.5 * Σ_μν D[μ,ν] * (H[μ,ν] + F[μ,ν])*/
+    int num_orbitals = H->size1;
+    double E = 0.0;
+    for (int u = 0; u < num_orbitals; u++) {
+        for (int v = 0; v < num_orbitals; v++) {
+            double val = gsl_matrix_get(D, u, v) * (gsl_matrix_get(H, u, v) + gsl_matrix_get(F, u, v));
+            E += val;
+        }
+    }
+    return E;
+}
+
+void execute_closed_shell_hf(Molecule *molecule, double delta, size_t max_iter) {
+    /*Main routine to execute closed-shell Hartree-Fock calculations.*/
+    int occ = 0;
+    for (int i = 0; i < molecule->num_atoms; i++) {
+        occ += molecule->atoms[i].Z;
+    }
+    occ /= 2; // Assuming closed-shell
+
+    int num_orbitals = 0;
+    for (int i = 0; i < molecule->num_atoms; i++) {num_orbitals += molecule->atoms[i].num_orbitals;}
+
+    gsl_matrix *F;
+    double E_new;
+    gsl_matrix *H = compute_H(molecule, num_orbitals);
+    gsl_matrix *D = compute_D0(molecule, num_orbitals);
+    gsl_matrix *S12 = compute_S12(molecule, num_orbitals);
+    double E = compute_E0(molecule, num_orbitals);
+    tensor4d *Vee = compute_2e_integral(molecule, num_orbitals);
+
+    for (int i = 1; i < max_iter; i++) {
+        F = compute_F(H, D, Vee);
+
+        gsl_vector *eval = gsl_vector_alloc(num_orbitals);
+        gsl_matrix *evec = gsl_matrix_alloc(num_orbitals, num_orbitals);
+        gsl_eigen_symmv_workspace *w = gsl_eigen_symmv_alloc(num_orbitals);
+        gsl_eigen_symmv(F, eval, evec, w);
+        gsl_eigen_symmv_sort(eval, evec, GSL_EIGEN_SORT_VAL_ASC);  // Changed to VAL_ASC to match Python's sort by eigenvalue
+
+        gsl_matrix *C = gsl_matrix_alloc(num_orbitals, num_orbitals);
+        gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, S12, evec, 0.0, C);
+        
+        gsl_matrix_view C_sub = gsl_matrix_submatrix (C, 0, 0, num_orbitals, occ);
+        gsl_matrix *sub = &C_sub.matrix;
+        gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, sub, sub, 0.0, D);
+
+        E_new = compute_electronic_energy(D, H, F);
+
+        if (fabs(E_new - E) < delta) {
+            printf("Converged after %d iterations. Final energy: %.6f Hartree\n", i+1, E_new);
+            gsl_eigen_symmv_free(w);
+            gsl_vector_free(eval);
+            gsl_matrix_free(evec);
+            gsl_matrix_free(C);
+            break;
+        }
+
+        printf("Iteration %d: Energy = %.6f Hartree, ΔE = %.6e\n", i, E_new, fabs(E_new - E));
+        E = E_new;
+        gsl_matrix_free(C);
+        gsl_eigen_symmv_free(w);
+        gsl_vector_free(eval);
+        gsl_matrix_free(evec);
+        gsl_matrix_free(F);
+    }
+
+}

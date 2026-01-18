@@ -53,22 +53,6 @@ int main(int argc, char *argv[]) {
 
     Molecule molecule = parse_molecule_from_file(filename, num_atoms);
     printf("Parsed molecule with %d atoms.\n", molecule.num_atoms);
-
-    int num_orbitals = 0;
-    for (int i = 0; i < molecule.num_atoms; i++) {num_orbitals += molecule.atoms[i].num_orbitals;}
-
-    tensor4d *Vee = compute_2e_integral(&molecule, num_orbitals);
-    if (Vee == NULL) {
-        fprintf(stderr, "Error: Failed to compute 2-electron integral tensor\n");
-        free_molecule(&molecule);
-        return 1;
-    }
-    gsl_matrix *H = compute_H(&molecule, num_orbitals);
-    gsl_matrix *D = compute_D0(&molecule, num_orbitals);
-    gsl_matrix *F = compute_F(H, D, Vee);
-    print_2D_tensor(F, num_orbitals);
-    tensor4d_free(Vee); //
-
     if (method != NULL && (strcmp(method, "1e-mat") == 0)) {
         
         /* Compute the number of orbitals in the molecule */
@@ -87,22 +71,28 @@ int main(int argc, char *argv[]) {
             print_2D_tensor(matrix, num_orbitals);
             gsl_matrix_free(matrix); // Free the matrix
         }
-    } else if (method != NULL && strcmp(method, "S12") == 0) {
+    } else if (method != NULL && strcmp(method, "guesses") == 0) {
         /* Compute the number of orbitals in the molecule */
         int num_orbitals = 0;
         for (int i = 0; i < molecule.num_atoms; i++) {num_orbitals += molecule.atoms[i].num_orbitals;}
 
         gsl_matrix *S12 = compute_S12(&molecule, num_orbitals);
         if (S12 == NULL) {
-            fprintf(stderr, "Error: Failed to compute 2-electron integral tensor\n");
+            fprintf(stderr, "Error: Failed to compute S^-1/2 matrix\n");
             free_molecule(&molecule);
             return 1;
         }
         printf("Computed S^-1/2 matrix of size %d x %d.\n", num_orbitals, num_orbitals);
         print_2D_tensor(S12, num_orbitals);
         gsl_matrix_free(S12); // Free the tensor
-    } else {
-        fprintf(stderr, "Error: Invalid method specified. Use '1e-mat' or '2e-tensor'.\n");
+    } else if (method != NULL && strcmp(method, "chf") == 0) {
+        execute_closed_shell_hf(&molecule, 1e-6, 100);
+        free_molecule(&molecule);
+        return 1;
+    }
+    
+    else{
+        fprintf(stderr, "Error: Invalid method specified. Use '1e-mat' or 'guesses'.\n");
         free_molecule(&molecule);
         return 1;
     }
