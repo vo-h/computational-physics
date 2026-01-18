@@ -309,48 +309,69 @@ void execute_closed_shell_hf(Molecule *molecule, double delta, size_t max_iter) 
     int num_orbitals = 0;
     for (int i = 0; i < molecule->num_atoms; i++) {num_orbitals += molecule->atoms[i].num_orbitals;}
 
-    gsl_matrix *F;
-    double E_new;
+    // Compute integrals once (they don't change during SCF)
     gsl_matrix *H = compute_H(molecule, num_orbitals);
-    gsl_matrix *D = compute_D0(molecule, num_orbitals);
     gsl_matrix *S12 = compute_S12(molecule, num_orbitals);
-    double E = compute_E0(molecule, num_orbitals);
     tensor4d *Vee = compute_2e_integral(molecule, num_orbitals);
+    
+    // Initial guess
+    gsl_matrix *D = compute_D0(molecule, num_orbitals);
+    double E = compute_E0(molecule, num_orbitals);
+    
+    printf("Iter %2d: E(elec) = %18.12f Hartree\n", 0, E);
 
-    for (int i = 1; i < max_iter; i++) {
-        F = compute_F(H, D, Vee);
+    for (int iter = 1; iter <= max_iter; iter++) {
+        // Build Fock matrix
+        gsl_matrix *F = compute_F(H, D, Vee);
 
+        // Transform Fock matrix to orthogonal basis: F' = S^-1/2 * F * S^-1/2
+        gsl_matrix *temp = gsl_matrix_alloc(num_orbitals, num_orbitals);
+        gsl_matrix *F_prime = gsl_matrix_alloc(num_orbitals, num_orbitals);
+        gsl_blas_dgemm(CblasTrans, CblasNoTrans, 1.0, S12, F, 0.0, temp);
+        gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, temp, S12, 0.0, F_prime);
+        gsl_matrix_free(temp);
+
+        // Diagonalize F'
         gsl_vector *eval = gsl_vector_alloc(num_orbitals);
         gsl_matrix *evec = gsl_matrix_alloc(num_orbitals, num_orbitals);
         gsl_eigen_symmv_workspace *w = gsl_eigen_symmv_alloc(num_orbitals);
-        gsl_eigen_symmv(F, eval, evec, w);
-        gsl_eigen_symmv_sort(eval, evec, GSL_EIGEN_SORT_VAL_ASC);  // Changed to VAL_ASC to match Python's sort by eigenvalue
+        gsl_eigen_symmv(F_prime, eval, evec, w);
+        gsl_eigen_symmv_sort(eval, evec, GSL_EIGEN_SORT_VAL_ASC);
+        gsl_eigen_symmv_free(w);
+        gsl_matrix_free(F_prime);
 
+        // Transform eigenvectors back to AO basis: C = S^-1/2 * C'
         gsl_matrix *C = gsl_matrix_alloc(num_orbitals, num_orbitals);
         gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, S12, evec, 0.0, C);
+        gsl_vector_free(eval);
+        gsl_matrix_free(evec);
         
-        gsl_matrix_view C_sub = gsl_matrix_submatrix (C, 0, 0, num_orbitals, occ);
-        gsl_matrix *sub = &C_sub.matrix;
-        gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, sub, sub, 0.0, D);
+        // Build new density matrix from occupied orbitals
+        gsl_matrix_view C_occ = gsl_matrix_submatrix(C, 0, 0, num_orbitals, occ);
+        gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, &C_occ.matrix, &C_occ.matrix, 0.0, D);
+        gsl_matrix_free(C);
 
-        E_new = compute_electronic_energy(D, H, F);
+        // Compute new electronic energy
+        double E_new = compute_electronic_energy(D, H, F);
+        double delta_E = E_new - E;
+        
+        printf("Iter %2d: E(elec) = %18.12f Hartree, ΔE = %18.12e\n", iter, E_new, delta_E);
 
-        if (fabs(E_new - E) < delta) {
-            printf("Converged after %d iterations. Final energy: %.6f Hartree\n", i+1, E_new);
-            gsl_eigen_symmv_free(w);
-            gsl_vector_free(eval);
-            gsl_matrix_free(evec);
-            gsl_matrix_free(C);
+        // Check for convergence
+        if (fabs(delta_E) < delta) {
+            printf("\nSCF converged after %d iterations!\n", iter);
+            printf("Final electronic energy: %.12f Hartree\n", E_new);
+            gsl_matrix_free(F);
             break;
         }
 
-        printf("Iteration %d: Energy = %.6f Hartree, ΔE = %.6e\n", i, E_new, fabs(E_new - E));
         E = E_new;
-        gsl_matrix_free(C);
-        gsl_eigen_symmv_free(w);
-        gsl_vector_free(eval);
-        gsl_matrix_free(evec);
         gsl_matrix_free(F);
     }
 
+    // Clean up
+    gsl_matrix_free(H);
+    gsl_matrix_free(S12);
+    gsl_matrix_free(D);
+    tensor4d_free(Vee);
 }
