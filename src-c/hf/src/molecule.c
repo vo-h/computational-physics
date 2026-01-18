@@ -2,9 +2,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_eigen.h>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_blas.h>
+
 #include "../include/basis_stog.h"
 #include "../include/atom.h"
 #include "../include/molecule.h"
+#include "../include/tensor.h"
 
 Molecule parse_molecule_from_file(const char *filename, int num_atoms) {
     /*Parse a molecule from an input file, extracting the atomic symbols, coordinates, and STO-nG orbital information to populate the Molecule struct.*/
@@ -52,63 +59,6 @@ Molecule parse_molecule_from_file(const char *filename, int num_atoms) {
     molecule.num_atoms = num_atoms;
     return molecule;
 }
-
-double **compute_1e_integral(Molecule *molecule, int num_orbitals, char *type) {
-    /*Compute the full overlap integral matrix for a set of STO-nG orbitals by iterating over all pairs of orbitals and calculating their overlap integrals using compute_Sij().*/
-    STOOrbital *orbitals = (STOOrbital *)malloc(num_orbitals * sizeof(STOOrbital));
-    
-    /* Get list of orbitals - fixed indexing to use running counter */
-    int orbital_idx = 0;
-    for (int i = 0; i < molecule->num_atoms; i++) {
-        for (int j = 0; j < molecule->atoms[i].num_orbitals; j++) {
-            orbitals[orbital_idx++] = molecule->atoms[i].orbitals[j];
-        }
-    }
-
-    /* Allocate matrix for 1-electron integrals */
-    double **matrix = (double **)malloc(num_orbitals * sizeof(double *));
-    if (matrix == NULL) {
-        free(orbitals);
-        return NULL;
-    }
-
-    for (int i = 0; i < num_orbitals; i++) {
-        matrix[i] = (double *)malloc(num_orbitals * sizeof(double));
-        if (matrix[i] == NULL) {
-            fprintf(stderr, "Failed to allocate memory for 1-electron integral matrix row %d\n", i);
-            for (int k = 0; k < i; k++) {
-                free(matrix[k]);
-            }
-            free(matrix);
-            free(orbitals);
-            return NULL;
-        }
-    }
-
-    // Initialize the matrix (example)
-    for (int i = 0; i < num_orbitals; i++) {
-        for (int j = i; j < num_orbitals; j++) {
-            if (strcmp(type, "overlap") == 0) {
-                matrix[i][j] = compute_Sij(orbitals[i], orbitals[j]);
-                matrix[j][i] = matrix[i][j];
-            } else if (strcmp(type, "kinetic") == 0) {
-                matrix[i][j] = compute_Tij(orbitals[i], orbitals[j]);
-                matrix[j][i] = matrix[i][j];
-            } else if (strcmp(type, "nuclear") == 0) {
-                matrix[i][j] = 0.0;
-                for (int k = 0; k < molecule->num_atoms; k++) {
-                    double R[3] = {molecule->atoms[k].coords[0], molecule->atoms[k].coords[1], molecule->atoms[k].coords[2]};
-                    double VijR = compute_VijR(orbitals[i], orbitals[j], R);
-                    matrix[i][j] += -molecule->atoms[k].Z * VijR;
-                }
-                matrix[j][i] = matrix[i][j];
-            }
-        }
-    }
-    free(orbitals);
-    return matrix;
-}
-
 void free_molecule(Molecule *molecule) {
     /*Free all memory allocated for the molecule*/
     if (molecule->atoms != NULL) {
@@ -123,4 +73,143 @@ void free_molecule(Molecule *molecule) {
         free(molecule->atoms);
         molecule->atoms = NULL;
     }
+}
+
+
+gsl_matrix *compute_1e_integral(Molecule *molecule, int num_orbitals, char *type) {
+    /*Compute the full overlap integral matrix for a set of STO-nG orbitals by iterating over all pairs of orbitals and calculating their overlap integrals using compute_Sij().*/
+    STOOrbital *orbitals = (STOOrbital *)malloc(num_orbitals * sizeof(STOOrbital));
+    
+    /* Get list of orbitals - fixed indexing to use running counter */
+    int orbital_idx = 0;
+    for (int i = 0; i < molecule->num_atoms; i++) {
+        for (int j = 0; j < molecule->atoms[i].num_orbitals; j++) {
+            orbitals[orbital_idx++] = molecule->atoms[i].orbitals[j];
+        }
+    }
+
+    /* Allocate matrix for 1-electron integrals */
+    gsl_matrix *matrix = gsl_matrix_alloc(num_orbitals, num_orbitals);
+    if (matrix == NULL) {
+        free(orbitals);
+        return NULL;
+    }
+
+    // Compute the matrix
+    for (int i = 0; i < num_orbitals; i++) {
+        for (int j = i; j < num_orbitals; j++) {
+            if (strcmp(type, "overlap") == 0) {
+                gsl_matrix_set(matrix, i, j, compute_Sij(orbitals[i], orbitals[j]));
+                gsl_matrix_set(matrix, j, i, gsl_matrix_get(matrix, i, j));
+            } else if (strcmp(type, "kinetic") == 0) {
+                gsl_matrix_set(matrix, i, j, compute_Tij(orbitals[i], orbitals[j]));
+                gsl_matrix_set(matrix, j, i, gsl_matrix_get(matrix, i, j));
+            } else if (strcmp(type, "nuclear") == 0) {
+                gsl_matrix_set(matrix, i, j, 0.0);
+                for (int k = 0; k < molecule->num_atoms; k++) {
+                    double R[3] = {molecule->atoms[k].coords[0], molecule->atoms[k].coords[1], molecule->atoms[k].coords[2]};
+                    double VijR = compute_VijR(orbitals[i], orbitals[j], R);
+                    gsl_matrix_set(matrix, i, j, gsl_matrix_get(matrix, i, j) + -molecule->atoms[k].Z * VijR);
+                }
+                gsl_matrix_set(matrix, j, i, gsl_matrix_get(matrix, i, j));
+            }
+        }
+    }
+    free(orbitals);
+    return matrix;
+}
+
+/* ------ HARTREE-FOCK ROUTINE ------ */
+
+gsl_matrix *compute_S12(Molecule *molecule, int num_orbitals) {
+    gsl_matrix *S = compute_1e_integral(molecule, num_orbitals, "overlap");
+
+    // Allocate space for eigenvalues and eigenvectors
+    gsl_vector *eval = gsl_vector_alloc(num_orbitals);
+    gsl_matrix *evec = gsl_matrix_alloc(num_orbitals, num_orbitals);
+
+    gsl_eigen_symmv_workspace *w = gsl_eigen_symmv_alloc(num_orbitals); // Allocate workspace
+    gsl_eigen_symmv(S, eval, evec, w); // Compute eigenvalues and eigenvectors
+    gsl_eigen_symmv_free(w); // Free workspace
+    gsl_eigen_symmv_sort(eval, evec, GSL_EIGEN_SORT_ABS_ASC);
+    
+    /* Compute S^-1/2 */
+    gsl_matrix *lambda12 = gsl_matrix_alloc(num_orbitals, num_orbitals);
+    gsl_matrix_set_zero(lambda12);
+    for (size_t i = 0; i < num_orbitals; i++) {
+        gsl_matrix_set(lambda12, i, i, 1.0 / sqrt(gsl_vector_get(eval, i)));
+    }
+    // gsl_matrix *S_inv_sqrt = gsl_matrix_alloc(num_orbitals, num_orbitals);
+    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, evec, lambda12, 0.0, S); // S^-1/2 = U * D^-1/2 * U^T
+    gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, S, evec, 0.0, lambda12);
+    gsl_matrix_free(S);
+    gsl_vector_free(eval);
+    gsl_matrix_free(evec);
+    return lambda12;
+}
+
+gsl_matrix *compute_H(Molecule *molecule, int num_orbitals) {
+    /*Compute the electronic Hamiltonian*/
+    gsl_matrix *nuc = compute_1e_integral(molecule, num_orbitals, "nuclear");
+    gsl_matrix *kin = compute_1e_integral(molecule, num_orbitals, "kinetic");
+    gsl_matrix *H = gsl_matrix_alloc(num_orbitals, num_orbitals);
+    gsl_matrix_add(H, nuc);
+    gsl_matrix_add(H, kin);
+    gsl_matrix_free(nuc);
+    gsl_matrix_free(kin);
+    return H;
+}
+
+gsl_matrix *compute_F0(Molecule *molecule, int num_orbitals) {
+    /*Compute the initial Fock matrix*/
+    gsl_matrix *S12 = compute_S12(molecule, num_orbitals);
+    gsl_matrix *H = compute_H(molecule, num_orbitals);
+    gsl_matrix *temp = gsl_matrix_alloc(num_orbitals, num_orbitals);
+    gsl_matrix *F0 = gsl_matrix_alloc(num_orbitals, num_orbitals);
+    gsl_blas_dgemm(CblasTrans, CblasNoTrans, 1.0, S12, H, 0.0, temp); // F0 = S^-1/2 * H * S^-1/2
+    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, temp, S12, 0.0, F0);
+    gsl_matrix_free(S12);
+    gsl_matrix_free(H);
+    gsl_matrix_free(temp);
+    return F0;
+}
+
+gsl_matrix *compute_C0(Molecule *molecule, int num_orbitals) {
+    /*Compute the initial coefficient matrix C0 by diagonalizing F0*/
+    gsl_matrix *F0 = compute_F0(molecule, num_orbitals);
+    gsl_vector *eval = gsl_vector_alloc(num_orbitals);
+    gsl_matrix *evec = gsl_matrix_alloc(num_orbitals, num_orbitals);
+    gsl_matrix *S12 = compute_S12(molecule, num_orbitals);
+    
+    gsl_eigen_symmv_workspace *w = gsl_eigen_symmv_alloc(num_orbitals);
+    gsl_eigen_symmv(F0, eval, evec, w);
+    gsl_eigen_symmv_sort(eval, evec, GSL_EIGEN_SORT_ABS_ASC);
+
+    gsl_matrix *C0 = gsl_matrix_alloc(num_orbitals, num_orbitals);
+    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, S12, evec, 0.0, C0);
+    
+    gsl_eigen_symmv_free(w);
+    gsl_matrix_free(F0);
+    gsl_vector_free(eval);
+    gsl_matrix_free(evec);
+    gsl_matrix_free(S12);
+    return C0; // C0 is the matrix of eigenvectors
+}
+
+gsl_matrix *compute_D0(Molecule *molecule, int num_orbitals) {
+    /*Compute the initial density matrix D0 from C0*/
+    int occ = 0;
+    for (int i = 0; i < molecule->num_atoms; i++) {
+        occ += molecule->atoms[i].Z;
+    }
+    occ /= 2; // Assuming closed-shell
+
+    gsl_matrix *C0 = compute_C0(molecule, num_orbitals);
+    gsl_matrix_view C0_sub = gsl_matrix_submatrix (C0, 0, 0, num_orbitals, occ);
+    gsl_matrix *sub = &C0_sub.matrix;
+
+    gsl_matrix *D0 = gsl_matrix_alloc(num_orbitals, num_orbitals);
+    gsl_blas_dgemm(CblasNoTrans, CblasTrans, 2.0, sub, sub, 0.0, D0); // D0 = 2 * C0 * C0^T for closed-shell
+    gsl_matrix_free(C0);
+    return D0;
 }
