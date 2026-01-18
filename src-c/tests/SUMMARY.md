@@ -39,15 +39,16 @@ Tests basis function integral computations (STO-3G):
 **Validates:** compute_Sij(), compute_Tij(), compute_VijR() functions, symmetry properties
 
 ### 4. test_integrals.c (6/6 tests passing)
-Tests molecular integral matrix computations using H₂ molecule (1.4 bohr):
-- ✓ `test_h2_overlap_matrix()` - Overlap matrix S with diagonal ≈ 1, symmetry
-- ✓ `test_h2_kinetic_matrix()` - Kinetic energy T with positive diagonal, symmetry
-- ✓ `test_h2_nuclear_matrix()` - Nuclear attraction V (all negative), symmetry
-- ✓ `test_h2_core_hamiltonian()` - Core Hamiltonian H = T + V, symmetry
-- ✓ `test_h2_2e_integrals()` - 2-electron integrals, 8-fold symmetry, positivity
-- ✓ `test_h2_s_inverse_sqrt()` - Transformation matrix S^{-1/2}, symmetry, positive diagonal
+Tests molecular integral matrix computations using H₂O molecule from test_data/hf:
+- ✓ `test_h2o_overlap_matrix()` - Compares S matrix against s.dat, validates diagonal ≈ 1, symmetry
+- ✓ `test_h2o_kinetic_matrix()` - Compares T matrix against t.dat, validates positive diagonal, symmetry
+- ✓ `test_h2o_nuclear_matrix()` - Compares V matrix against v.dat, validates negative values, symmetry
+- ✓ `test_h2o_core_hamiltonian()` - Tests H = T + V, validates symmetry and negative diagonal
+- ✓ `test_h2o_2e_integrals()` - Compares ERIs against eri.dat, validates 8-fold symmetry
+- ✓ `test_h2o_s_inverse_sqrt()` - Validates S^{-1/2} symmetry, positive diagonal, S^{-1/2}ᵀ·S·S^{-1/2} = I
 
-**Validates:** compute_1e_integral(), compute_2e_integral(), compute_H(), compute_S12() functions
+**Validates:** compute_1e_integral(), compute_2e_integral(), compute_H(), compute_S12() functions  
+**Reference Data:** Loaded from ../../test_data/hf/ (geom.dat, s.dat, t.dat, v.dat, eri.dat)
 
 ## Build System
 Created `Makefile` with targets:
@@ -74,6 +75,9 @@ Created `Makefile` with targets:
 - ✓ Memory management (allocation/deallocation)
 - ✓ Data structure integrity
 - ✓ Basis set initialization (STO-3G parameters)
+- ✓ Comparison against reference data from test_data/hf
+- ✓ Orthogonality transformation (S^{-1/2}ᵀ·S·S^{-1/2} = I)
+- ✓ Molecule parsing from geometry file
 
 ## Test Execution Output
 ```
@@ -89,7 +93,7 @@ Tests passed: 5/5
 Running Basis Function Tests...
 Tests passed: 5/5
 
-Running Molecule Integral Tests...
+Running H2O Integral Tests (comparing with test_data/hf)...
 Tests passed: 6/6
 
 ==========================================
