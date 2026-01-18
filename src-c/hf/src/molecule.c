@@ -17,7 +17,7 @@ Molecule parse_molecule_from_file(const char *filename, int num_atoms) {
     char symbol[3];
     double x, y, z;
     int Z;
-    int basis;
+    char basis[10];
     Molecule molecule;
     molecule.num_atoms = 0;
     
@@ -29,13 +29,21 @@ Molecule parse_molecule_from_file(const char *filename, int num_atoms) {
         exit(1);
     }
 
-    while (fscanf(fptr, "%2s %lf %lf %lf %d %d", symbol, &x, &y, &z, &Z, &basis) == 6) {
+    while (fscanf(fptr, "%2s %lf %lf %lf %d %s", symbol, &x, &y, &z, &Z, basis) == 6) {
         /*Parse atomic information*/
         if (molecule.num_atoms >= num_atoms) {
             fprintf(stderr, "Warning: File contains more atoms than specified (%d)\n", num_atoms);
             break;
         }
-        Atom temp = parse_atom(symbol, x, y, z, basis);
+        
+        /* Extract basis set information (e.g., "STO-3G") and parse the number of GTO primitives (n) from it. */
+        int n;
+        printf("Parsing atom: %s at (%.2f, %.2f, %.2f) with basis %s\n", symbol, x, y, z, basis);
+        if (sscanf(basis, "STO-%dG", &n) != 1) {
+            fprintf(stderr, "Warning: Invalid basis set format for atom %s. Expected 'STO-nG'. Skipping.\n", symbol);
+            continue;
+        }
+        Atom temp = parse_atom(symbol, x, y, z, n);
         atoms[molecule.num_atoms++] = temp;
     }
     
