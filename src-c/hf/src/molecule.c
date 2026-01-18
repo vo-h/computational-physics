@@ -138,7 +138,15 @@ tensor4d *compute_2e_integral(Molecule *molecule, int num_orbitals) {
                 for (int l = 0; l < num_orbitals; l++) {
                     if ((i*num_orbitals + j) >= (k*num_orbitals + l)) {
                         double val = compute_Vijkl(orbitals[i], orbitals[j], orbitals[k], orbitals[l]);
+                        // 8-fold symmetry: (ij|kl) = (ji|kl) = (ij|lk) = (ji|lk) = (kl|ij) = (kl|ji) = (lk|ij) = (lk|ji)
                         tensor4d_set(Vijkl, i, j, k, l, val);
+                        tensor4d_set(Vijkl, j, i, k, l, val);
+                        tensor4d_set(Vijkl, i, j, l, k, val);
+                        tensor4d_set(Vijkl, j, i, l, k, val);
+                        tensor4d_set(Vijkl, k, l, i, j, val);
+                        tensor4d_set(Vijkl, k, l, j, i, val);
+                        tensor4d_set(Vijkl, l, k, i, j, val);
+                        tensor4d_set(Vijkl, l, k, j, i, val);
                     }
                 }
             }
