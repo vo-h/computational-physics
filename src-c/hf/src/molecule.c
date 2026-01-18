@@ -131,7 +131,7 @@ gsl_matrix *compute_S12(Molecule *molecule, int num_orbitals) {
     gsl_eigen_symmv_workspace *w = gsl_eigen_symmv_alloc(num_orbitals); // Allocate workspace
     gsl_eigen_symmv(S, eval, evec, w); // Compute eigenvalues and eigenvectors
     gsl_eigen_symmv_free(w); // Free workspace
-    gsl_eigen_symmv_sort(eval, evec, GSL_EIGEN_SORT_ABS_ASC);
+    gsl_eigen_symmv_sort(eval, evec, GSL_EIGEN_SORT_VAL_ASC);
     
     /* Compute S^-1/2 */
     gsl_matrix *lambda12 = gsl_matrix_alloc(num_orbitals, num_orbitals);
@@ -183,7 +183,7 @@ gsl_matrix *compute_C0(Molecule *molecule, int num_orbitals) {
     
     gsl_eigen_symmv_workspace *w = gsl_eigen_symmv_alloc(num_orbitals);
     gsl_eigen_symmv(F0, eval, evec, w);
-    gsl_eigen_symmv_sort(eval, evec, GSL_EIGEN_SORT_ABS_ASC);
+    gsl_eigen_symmv_sort(eval, evec, GSL_EIGEN_SORT_VAL_ASC);  // Changed to VAL_ASC to match Python's sort by eigenvalue
 
     gsl_matrix *C0 = gsl_matrix_alloc(num_orbitals, num_orbitals);
     gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, S12, evec, 0.0, C0);
@@ -209,7 +209,7 @@ gsl_matrix *compute_D0(Molecule *molecule, int num_orbitals) {
     gsl_matrix *sub = &C0_sub.matrix;
 
     gsl_matrix *D0 = gsl_matrix_alloc(num_orbitals, num_orbitals);
-    gsl_blas_dgemm(CblasNoTrans, CblasTrans, 2.0, sub, sub, 0.0, D0); // D0 = 2 * C0 * C0^T for closed-shell
+    gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, sub, sub, 0.0, D0); // D0 = C0_occ @ C0_occ.T (no factor of 2, matches Python)
     gsl_matrix_free(C0);
     return D0;
 }
