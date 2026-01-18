@@ -119,6 +119,35 @@ gsl_matrix *compute_1e_integral(Molecule *molecule, int num_orbitals, char *type
     return matrix;
 }
 
+tensor4d *compute_2e_integral(Molecule *molecule, int num_orbitals) {
+    tensor4d *Vijkl = tensor4d_alloc(num_orbitals, num_orbitals, num_orbitals, num_orbitals);
+    /*Compute the 2-electron integral tensor for a set of STO-nG orbitals*/
+
+    /* Get list of orbitals - fixed indexing to use running counter */
+    STOOrbital *orbitals = (STOOrbital *)malloc(num_orbitals * sizeof(STOOrbital));
+    int orbital_idx = 0;
+    for (int i = 0; i < molecule->num_atoms; i++) {
+        for (int j = 0; j < molecule->atoms[i].num_orbitals; j++) {
+            orbitals[orbital_idx++] = molecule->atoms[i].orbitals[j];
+        }
+    }
+
+    for (int i = 0; i < num_orbitals; i++) {
+        for (int j = 0; j < num_orbitals; j++) {
+            for (int k = 0; k < num_orbitals; k++) {
+                for (int l = 0; l < num_orbitals; l++) {
+                    if ((i*num_orbitals + j) >= (k*num_orbitals + l)) {
+                        double val = compute_Vijkl(orbitals[i], orbitals[j], orbitals[k], orbitals[l]);
+                        tensor4d_set(Vijkl, i, j, k, l, val);
+                    }
+                }
+            }
+        }
+    }
+    free(orbitals);
+    return Vijkl;
+}
+
 /* ------ HARTREE-FOCK ROUTINE ------ */
 
 gsl_matrix *compute_S12(Molecule *molecule, int num_orbitals) {
@@ -212,4 +241,38 @@ gsl_matrix *compute_D0(Molecule *molecule, int num_orbitals) {
     gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, sub, sub, 0.0, D0); // D0 = C0_occ @ C0_occ.T (no factor of 2, matches Python)
     gsl_matrix_free(C0);
     return D0;
+}
+
+double compute_E0(Molecule *molecule, int num_orbitals) {
+    /*Compute the initial total energy E0 using D0 and H*/
+    gsl_matrix *H = compute_H(molecule, num_orbitals);
+    gsl_matrix *D0 = compute_D0(molecule, num_orbitals);
+    double E0 = 0.0;
+    for (int i = 0; i < num_orbitals; i++) {
+        for (int j = 0; j < num_orbitals; j++) {
+            E0 += gsl_matrix_get(D0, i, j) * gsl_matrix_get(H, i, j);
+        }
+    }
+    gsl_matrix_free(H);
+    gsl_matrix_free(D0);
+    return 2*E0;
+}
+
+gsl_matrix *compute_F(gsl_matrix *H, gsl_matrix *D, tensor4d *Vee) {
+    /*Compute the Fock matrix F using the formula F[μ,ν] = H[μ,ν] + Σ_λσ D[λ,σ] * [2*(μν|λσ) - (μλ|νσ)]*/
+    int num_orbitals = H->size1;
+    gsl_matrix *F = gsl_matrix_alloc(num_orbitals, num_orbitals);
+    gsl_matrix_memcpy(F, H);
+
+    for (int u = 0; u < num_orbitals; u++) {
+        for (int v = 0; v < num_orbitals; v++) {
+            for (int l = 0; l < num_orbitals; l++) {
+                for (int s = 0; s < num_orbitals; s++) {
+                    double val = gsl_matrix_get(D, l, s) * (2*tensor4d_get(Vee, u, v, l, s) - tensor4d_get(Vee, u, l, v, s));
+                    gsl_matrix_set(F, u, v, gsl_matrix_get(F, u, v) + val);
+                }
+            }
+        }
+    }
+    return F;
 }

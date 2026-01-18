@@ -57,30 +57,17 @@ int main(int argc, char *argv[]) {
     int num_orbitals = 0;
     for (int i = 0; i < molecule.num_atoms; i++) {num_orbitals += molecule.atoms[i].num_orbitals;}
 
-    gsl_matrix *S12 = compute_S12(&molecule, num_orbitals);
-    printf("Computed S^-1/2 matrix of size %d x %d.\n", num_orbitals, num_orbitals);
-    print_2D_tensor(S12, num_orbitals);
-    gsl_matrix_free(S12); // Free the tensor
-
+    tensor4d *Vee = compute_2e_integral(&molecule, num_orbitals);
+    if (Vee == NULL) {
+        fprintf(stderr, "Error: Failed to compute 2-electron integral tensor\n");
+        free_molecule(&molecule);
+        return 1;
+    }
     gsl_matrix *H = compute_H(&molecule, num_orbitals);
-    printf("Computed H matrix of size %d x %d.\n", num_orbitals, num_orbitals);
-    print_2D_tensor(H, num_orbitals);
-    gsl_matrix_free(H); // Free the tensor
-
-    gsl_matrix *F0 = compute_F0(&molecule, num_orbitals);
-    printf("Computed F0 matrix of size %d x %d.\n", num_orbitals, num_orbitals);
-    print_2D_tensor(F0, num_orbitals);
-    gsl_matrix_free(F0); // Free the tensor
-
-    gsl_matrix *C0 = compute_C0(&molecule, num_orbitals);
-    printf("Computed C0 matrix of size %d x %d.\n", num_orbitals, num_orbitals);
-    print_2D_tensor(C0, num_orbitals);
-    gsl_matrix_free(C0); // Free the tensor
-
-    gsl_matrix *D0 = compute_D0(&molecule, num_orbitals);
-    printf("Computed D0 matrix of size %d x %d.\n", num_orbitals, num_orbitals);
-    print_2D_tensor(D0, num_orbitals);
-    gsl_matrix_free(D0); // Free the tensor
+    gsl_matrix *D = compute_D0(&molecule, num_orbitals);
+    gsl_matrix *F = compute_F(H, D, Vee);
+    print_2D_tensor(F, num_orbitals);
+    tensor4d_free(Vee); //
 
     if (method != NULL && (strcmp(method, "1e-mat") == 0)) {
         
