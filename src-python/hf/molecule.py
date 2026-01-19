@@ -6,7 +6,6 @@ import numpy as np
 from tqdm import tqdm
 from hf.atom import Atom
 import numpy as np
-from functools import cached_property
 import logging
 from typing import Self
 
@@ -60,7 +59,7 @@ class Molecule(BaseModel):
         if self.basis.startswith("STO-"):
             return STOGIntegrator()
     
-    @cached_property
+    @property
     def S(self) -> np.ndarray:
         """The overlap integral between all pairs of orbitals in the molecule."""
         S = np.zeros((len(self.orbitals), len(self.orbitals)))
@@ -70,7 +69,7 @@ class Molecule(BaseModel):
         return S
 
 
-    @cached_property
+    @property
     def T(self) -> np.ndarray:
         """The kinetic energy integral between all pairs of orbitals in the molecule."""
         T = np.zeros((len(self.orbitals), len(self.orbitals)))
@@ -79,7 +78,7 @@ class Molecule(BaseModel):
                 T[i, j] = T[j, i] = self.integrator.Tij(self.orbitals[i], self.orbitals[j])
         return T
 
-    @cached_property
+    @property
     def Vne(self) -> np.ndarray:
         """The electron-nuclear attraction integral between all pairs of orbitals in the molecule."""
         V = np.zeros((len(self.orbitals), len(self.orbitals)))
@@ -88,12 +87,12 @@ class Molecule(BaseModel):
                 V[i, j] = V[j, i] = sum(-atom.Z * self.integrator.VijR(self.orbitals[i], self.orbitals[j], atom.coords) for atom in self.atoms)
         return V
 
-    @cached_property
+    @property
     def H(self) -> np.ndarray:
         """The core Hamiltonian matrix, which is the sum of the kinetic energy and electron-nuclear attraction integrals."""
         return self.T + self.Vne
 
-    @cached_property
+    @property
     def Vee(self) -> np.ndarray:
         """The electron-electron repulsion integrals (ij|kl) with 8-fold permutational symmetry."""
         V = np.zeros((len(self.orbitals), len(self.orbitals), len(self.orbitals), len(self.orbitals)))
@@ -114,8 +113,17 @@ class Molecule(BaseModel):
                             V[l,k,j,i] = term
         return V
 
+    @property
+    def Vnn(self) -> float:
+        """The nuclear-nuclear repulsion energy of the molecule."""
+        Vnn = 0.0
+        for i in range(len(self.atoms)):
+            for j in range(i+1, len(self.atoms)):
+                R = np.linalg.norm(np.array(self.atoms[i].coords) - np.array(self.atoms[j].coords))
+                Vnn += self.atoms[i].Z * self.atoms[j].Z / R
+        return Vnn
 
-    @cached_property
+    @property
     def S12(self) -> np.ndarray:
         """The symmetric orthogonalization matrix"""
         eigv, L = np.linalg.eig(self.S)
@@ -191,18 +199,21 @@ class Molecule(BaseModel):
         occ = math.ceil(sum(atom.Z for atom in self.atoms) / 2)
         D = self.D0
         E = self.E0
+        H = self.H
+        Vee = self.Vee
+        S12 = self.S12
 
         for i in tqdm(range(max_iter), desc="SCF Iteration"):
             if i == 0:
                 logger.info(f"Iteration 00: Energy = {E:.12f} Hartree")
                 continue
-            F = self.H + np.einsum('ls,uvls->uv', D, 2*self.Vee) - np.einsum('ls,ulvs->uv', D, self.Vee) # Compute new Fock matrix in AO basis using tensor contraction
-            eigv, C = np.linalg.eig(self.S12.T @ F @ self.S12) # Orthogonalize & Diagonalize Fock matrix
+            F = H + np.einsum('ls,uvls->uv', D, 2*Vee) - np.einsum('ls,ulvs->uv', D, Vee) # Compute new Fock matrix in AO basis using tensor contraction
+            eigv, C = np.linalg.eig(S12.T @ F @ S12) # Orthogonalize & Diagonalize Fock matrix
             idx = np.argsort(eigv) # Sort eigenvalues and eigenvectors
             eigv, C = eigv[idx], C[:, idx]
-            C = self.S12 @ C # Transform eigenvectors back to original basis
+            C = S12 @ C # Transform eigenvectors back to original basis
             D = C[:, :occ] @ C[:, :occ].T # Build new density matrix
-            E_new = np.sum(D * (self.H + F)) # Compute new energy
+            E_new = np.sum(D * (H + F)) # Compute new energy
             if abs(E_new - E) < delta:
                 logger.info(f"SCF converged in {i} iterations with energy: {E_new:.6f} Hartree")
                 break
