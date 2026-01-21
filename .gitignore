@@ -7,3 +7,13 @@
 **.egg-info
 **.vscode/
 **.DS_Store
+
+**.o
+**.exe
+**.out
+**__pycache__/
+**.pytest_cache/
+**.mypy_cache/
+**.tox/
+**.coverage
+**.ipynb_checkpoints/
