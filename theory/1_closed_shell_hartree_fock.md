@@ -63,7 +63,7 @@ $$
 In order to find the ground state of the system, we need to minimize $E_{HF}$ with respect to the molecular orbitals $\chi_i$, subject to the constraint that the orbitals remain orthonormal $\langle \chi_i | \chi_j \rangle = \delta_{ij}$, which is what Lagrange multipliers are for (spoiler alert—the multipliers will turn out to be the orbital energies $\epsilon_i$):
 
 $$
-\mathcal{L}[\{\chi_i\}] = E_{HF}[\{\chi_i\}]  - \sum_{i,j} \epsilon_{ij} \left( \langle \chi_i | \chi_j \rangle - \delta_{ij} \right)
+\mathcal{L}[\lbrace\chi_i\rbrace] = E_{HF}[\lbrace\chi_i\rbrace]  - \sum_{i,j} \epsilon_{ij} \left( \langle \chi_i | \chi_j \rangle - \delta_{ij} \right)
 $$
 
 After substituting $E_{HF}$ into the Lagrangian and taking the functional derivative with respect to $\chi_i$, we arrive at the non-canonical (i.e., non-eigenvalue) Hartree-Fock equations:
@@ -91,7 +91,7 @@ $$
 $$
 
 ## Basis Set Expansion and Roothaan-Hall Equations
-In practice, we express the molecular orbitals as linear combinations of a finite set of known atomic basis functions $\{\phi_\mu\}$:
+In practice, we express the molecular orbitals as linear combinations of a finite set of known atomic basis functions $\lbrace\phi_\mu\rbrace$:
 
 $$
 |\chi_i \rangle = \sum_{\mu} c_{\mu i} |\phi_\mu \rangle 
