@@ -94,13 +94,13 @@ Molecule* load_molecule_from_geom(const char* filename, int *num_orbitals) {
 // Test H2O molecule overlap matrix against reference data
 int test_h2o_overlap_matrix() {
     int num_orbitals;
-    Molecule *mol = load_molecule_from_geom("../../test_data/hf/geom.dat", &num_orbitals);
+    Molecule *mol = load_molecule_from_geom("../../data/hf/geom.dat", &num_orbitals);
     if (!mol) return 0;
     
     ASSERT_EQ(num_orbitals, 7, "H2O should have 7 orbitals");
     
     gsl_matrix *S = compute_1e_integral(mol, num_orbitals, "overlap");
-    gsl_matrix *S_ref = load_matrix_from_file("../../test_data/hf/s.dat", num_orbitals, num_orbitals);
+    gsl_matrix *S_ref = load_matrix_from_file("../../data/hf/s.dat", num_orbitals, num_orbitals);
     
     if (!S_ref) {
         gsl_matrix_free(S);
@@ -152,11 +152,11 @@ int test_h2o_overlap_matrix() {
 // Test H2O kinetic energy matrix against reference data
 int test_h2o_kinetic_matrix() {
     int num_orbitals;
-    Molecule *mol = load_molecule_from_geom("../../test_data/hf/geom.dat", &num_orbitals);
+    Molecule *mol = load_molecule_from_geom("../../data/hf/geom.dat", &num_orbitals);
     if (!mol) return 0;
     
     gsl_matrix *T = compute_1e_integral(mol, num_orbitals, "kinetic");
-    gsl_matrix *T_ref = load_matrix_from_file("../../test_data/hf/t.dat", num_orbitals, num_orbitals);
+    gsl_matrix *T_ref = load_matrix_from_file("../../data/hf/t.dat", num_orbitals, num_orbitals);
     
     if (!T_ref) {
         gsl_matrix_free(T);
@@ -215,11 +215,11 @@ int test_h2o_kinetic_matrix() {
 // Test H2O nuclear attraction matrix against reference data
 int test_h2o_nuclear_matrix() {
     int num_orbitals;
-    Molecule *mol = load_molecule_from_geom("../../test_data/hf/geom.dat", &num_orbitals);
+    Molecule *mol = load_molecule_from_geom("../../data/hf/geom.dat", &num_orbitals);
     if (!mol) return 0;
     
     gsl_matrix *V = compute_1e_integral(mol, num_orbitals, "nuclear");
-    gsl_matrix *V_ref = load_matrix_from_file("../../test_data/hf/v.dat", num_orbitals, num_orbitals);
+    gsl_matrix *V_ref = load_matrix_from_file("../../data/hf/v.dat", num_orbitals, num_orbitals);
     
     if (!V_ref) {
         gsl_matrix_free(V);
@@ -289,7 +289,7 @@ int test_h2o_nuclear_matrix() {
 // Test H2O core Hamiltonian (H = T + V)
 int test_h2o_core_hamiltonian() {
     int num_orbitals;
-    Molecule *mol = load_molecule_from_geom("../../test_data/hf/geom.dat", &num_orbitals);
+    Molecule *mol = load_molecule_from_geom("../../data/hf/geom.dat", &num_orbitals);
     if (!mol) return 0;
     
     gsl_matrix *H = compute_H(mol, num_orbitals);
@@ -326,7 +326,7 @@ int test_h2o_core_hamiltonian() {
 // Test H2O 2-electron integral tensor against reference data
 int test_h2o_2e_integrals() {
     int num_orbitals;
-    Molecule *mol = load_molecule_from_geom("../../test_data/hf/geom.dat", &num_orbitals);
+    Molecule *mol = load_molecule_from_geom("../../data/hf/geom.dat", &num_orbitals);
     if (!mol) return 0;
     
     tensor4d *Vee = compute_2e_integral(mol, num_orbitals);
@@ -350,7 +350,7 @@ int test_h2o_2e_integrals() {
     }
     
     // Load reference data from eri.dat and compare
-    FILE *fp = fopen("../../test_data/hf/eri.dat", "r");
+    FILE *fp = fopen("../../data/hf/eri.dat", "r");
     if (fp) {
         int mismatches = 0;
         int i, j, k, l;
@@ -387,7 +387,7 @@ int test_h2o_2e_integrals() {
 // Test H2O S^{-1/2} matrix computation
 int test_h2o_s_inverse_sqrt() {
     int num_orbitals;
-    Molecule *mol = load_molecule_from_geom("../../test_data/hf/geom.dat", &num_orbitals);
+    Molecule *mol = load_molecule_from_geom("../../data/hf/geom.dat", &num_orbitals);
     if (!mol) return 0;
     
     gsl_matrix *S12 = compute_S12(mol, num_orbitals);
@@ -444,7 +444,7 @@ int test_h2o_s_inverse_sqrt() {
 }
 
 int main() {
-    printf("Running H2O Integral Tests (comparing with test_data/hf)...\n");
+    printf("Running H2O Integral Tests (comparing with data/hf)...\n");
     printf("==========================================================\n");
     
     int passed = 0;

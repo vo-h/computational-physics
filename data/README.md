@@ -1,0 +1,1 @@
+This directory contains data files used for testing and examples in the computational physics/chemistry codebase.

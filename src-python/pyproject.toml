@@ -34,14 +34,14 @@ dev = [
 hf = "hf.cli:hf"
 
 [tool.setuptools.packages.find]
-where = ["src-python"]
+where = ["."]
 
 [tool.setuptools.package-data]
 "*" = ["*.txt", "*.csv", "*.xyz"]
 
 [tool.pytest.ini_options]
-testpaths = ["src-python/tests"]
-pythonpath = ["src-python"]
+testpaths = ["tests"]
+pythonpath = ["."]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

@@ -5,7 +5,7 @@ from pathlib import Path
 from hf.molecule import Molecule
 
 
-DATA_DIR = Path(__file__).parent.parent.parent.parent / "test_data" / "hf"
+DATA_DIR = Path(__file__).parent.parent.parent.parent / "data" / "hf"
 
 
 @pytest.fixture
