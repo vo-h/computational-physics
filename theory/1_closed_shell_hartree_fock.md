@@ -78,10 +78,8 @@ To get to the canonical form, we can define a unitary transformation matrix U th
 $$
 |\chi_j' \rangle = \sum_j U_{lj} |\chi_j \rangle \rightarrow 
 \langle  \chi_j'| \hat{F} | \chi_i' \rangle 
-
 = \sum_k^N \sum_i^N U_{ki}^* \epsilon_{kl} U_{lj} 
 = (U^{\dagger} \epsilon U)_{ij} = \epsilon_{ij}'
-
 $$
 
 By choosing U such that it diagonalizes the matrix of Lagrange multipliers $\epsilon$, we can rewrite the Hartree-Fock equations in their canonical form:
