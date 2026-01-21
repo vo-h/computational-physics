@@ -36,7 +36,7 @@ $$
 \hat{H} = -\frac{1}{2}\sum_{i}\nabla_i^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i\lt j} \frac{1}{r_{ij}} + \sum_{A\lt B} \frac{Z_A Z_B}{R_{AB}} = -\frac{1}{2}\sum_{i}\nabla_i^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i\lt j} \frac{1}{r_{ij}} + V_{NN}
 $$
 
-Ignoring the nuclear repulsion term $V_{NN}$ for now, we can compute the Hartree-Fock version of the electronic energy as the expectation value of the Hamiltonian with respect to the wavefunction:
+Ignoring the nuclear repulsion term $V_{NN}$ for now, we can compute the Hartree-Fock electronic energy as:
 
 $$
 E_{HF} 
