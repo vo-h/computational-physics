@@ -25,7 +25,7 @@ for several reasons:
 In atomic units, we can write the Hamiltonian for the whole system as:
 
 $$
-\hat{H} = -\frac{1}{2}\sum_{i}\nabla_i^2 - \frac{1}{2} \sum_{A}\nabla_A^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i<j} \frac{1}{r_{ij}} + \sum_{A<B} \frac{Z_A Z_B}{R_{AB}}
+\hat{H} = -\frac{1}{2}\sum_{i}\nabla_i^2 - \frac{1}{2} \sum_{A}\nabla_A^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i\lt j} \frac{1}{r_{ij}} + \sum_{A\lt B} \frac{Z_A Z_B}{R_{AB}}
 $$  
 
 where capital letters (A, B) denote the nuclei and lowercase letters (i, j) denote the electrons. The first two terms represent the kinetic energy of the electrons and nuclei, respectively. The third term represents the electron-nucleus attraction, the fourth term represents the electron-electron repulsion, and the last term represents the nucleus-nucleus repulsion.
@@ -33,7 +33,7 @@ where capital letters (A, B) denote the nuclei and lowercase letters (i, j) deno
 The Born-Oppenheimer approximation simplifies the problem by assuming that the nuclei are stationary relative to the electrons due to their much larger mass. This allows us to neglect the nuclear kinetic energy term, leading to a simplified Hamiltonian:
 
 $$
-\hat{H} = -\frac{1}{2}\sum_{i}\nabla_i^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i<j} \frac{1}{r_{ij}} + \sum_{A<B} \frac{Z_A Z_B}{R_{AB}} = -\frac{1}{2}\sum_{i}\nabla_i^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i<j} \frac{1}{r_{ij}} + V_{NN}
+\hat{H} = -\frac{1}{2}\sum_{i}\nabla_i^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i\lt j} \frac{1}{r_{ij}} + \sum_{A\lt B} \frac{Z_A Z_B}{R_{AB}} = -\frac{1}{2}\sum_{i}\nabla_i^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i\lt j} \frac{1}{r_{ij}} + V_{NN}
 $$
 
 Ignoring the nuclear repulsion term $V_{NN}$ for now, we can compute the Hartree-Fock version of the electronic energy as the expectation value of the Hamiltonian with respect to the wavefunction:
@@ -41,8 +41,8 @@ Ignoring the nuclear repulsion term $V_{NN}$ for now, we can compute the Hartree
 $$
 E_{HF} 
 = \langle \Psi | \hat{H} | \Psi \rangle 
-= \langle \Psi | -\frac{1}{2}\sum_{i}\nabla_i^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i<j} \frac{1}{r_{ij}} | \Psi \rangle 
-= \sum_{i=1}^{N} \langle \chi_i | \hat{h}(i) | \chi_i \rangle + \sum_{i<j}^{N} \left[ \langle \chi_i \chi_j | \hat{J}_j | \chi_i \chi_j \rangle - \langle \chi_i \chi_j | \hat{K}_j | \chi_i \chi_j \rangle \right]
+= \langle \Psi | -\frac{1}{2}\sum_{i}\nabla_i^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i\lt j} \frac{1}{r_{ij}} | \Psi \rangle 
+= \sum_{i=1}^{N} \langle \chi_i | \hat{h}(i) | \chi_i \rangle + \sum_{i\lt j}^{N} \left[ \langle \chi_i \chi_j | \hat{J}_j | \chi_i \chi_j \rangle - \langle \chi_i \chi_j | \hat{K}_j | \chi_i \chi_j \rangle \right]
 $$
 
 where 
