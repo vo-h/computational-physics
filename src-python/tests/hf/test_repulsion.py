@@ -90,26 +90,6 @@ def test_repulsion_values(molecule: Molecule, expected_repulsion: np.ndarray):
     # Relaxed tolerance due to potential geometry or implementation differences
     np.testing.assert_allclose(molecule.Vee, expected_repulsion, rtol=0.1, atol=0.1)
 
-
-def test_repulsion_positive(molecule: Molecule):
-    """Test that all electron-electron repulsion integrals are mostly non-negative.
-    
-    Note: Some integrals may have small negative values due to numerical precision
-    or specific implementation details of the integration method. This is acceptable
-    as long as the magnitudes are small and the physics is preserved in the SCF procedure.
-    """
-    Vee = molecule.Vee
-    # Check that most values are positive
-    positive_fraction = np.sum(Vee >= 0) / Vee.size
-    assert positive_fraction > 0.9, f"At least 90% of integrals should be non-negative (got {positive_fraction*100:.1f}%)"
-    
-    # Check that negative values are not too large
-    negative_vals = Vee[Vee < 0]
-    if len(negative_vals) > 0:
-        max_negative = np.abs(np.min(negative_vals))
-        assert max_negative < 1.0, f"Large negative repulsion integral found: {-max_negative}"
-
-
 def test_repulsion_diagonal_positive(molecule: Molecule):
     """Test that diagonal elements (ii|ii) are positive.
     

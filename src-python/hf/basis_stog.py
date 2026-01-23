@@ -173,7 +173,7 @@ class STOGIntegrator:
         """Calculate the Coulomb repulsion integral between two STO-nG orbitals."""
 
         def compute_Vabcd(gto1: STOGPrimitive, gto2: STOGPrimitive, gto3: STOGPrimitive, gto4: STOGPrimitive) -> float:
-            """Calculate the electron-electron repulsion integral between two STO-nG orbitals. https://joshuagoings.com/2017/04/28/integrals/"""
+            """Calculate the electron-electron repulsion integral between two STO-nG orbitals."""
             p = gto1.alpha + gto2.alpha
             q = gto3.alpha + gto4.alpha
             alpha = p * q / (p + q)
@@ -187,12 +187,12 @@ class STOGIntegrator:
                         for tau in range(gto3.nx+gto4.nx+1):
                             for nu in range(gto3.ny+gto4.ny+1):
                                 for phi in range(gto3.nz+gto4.nz+1):
-                                    term1 = self.compute_E(gto1.nx, gto2.nx, t, gto1.coords[0], gto2.coords[0], gto1.alpha, gto2.alpha)
-                                    term2 = self.compute_E(gto1.ny, gto2.ny, u, gto1.coords[1], gto2.coords[1], gto1.alpha, gto2.alpha)
-                                    term3 = self.compute_E(gto1.nz, gto2.nz, v, gto1.coords[2], gto2.coords[2], gto1.alpha, gto2.alpha)
-                                    term4 = self.compute_E(gto3.nx, gto4.nx, tau, gto3.coords[0], gto4.coords[0], gto3.alpha, gto4.alpha)
-                                    term5 = self.compute_E(gto3.ny, gto4.ny, nu, gto3.coords[1], gto4.coords[1], gto3.alpha, gto4.alpha)
-                                    term6 = self.compute_E(gto3.nz, gto4.nz, phi, gto3.coords[2], gto4.coords[2], gto3.alpha, gto4.alpha)
+                                    term1 = self.compute_E(gto1.coords[0], gto2.coords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx, t)
+                                    term2 = self.compute_E(gto1.coords[1], gto2.coords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny, u)
+                                    term3 = self.compute_E(gto1.coords[2], gto2.coords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz, v)
+                                    term4 = self.compute_E(gto3.coords[0], gto4.coords[0], gto3.alpha, gto4.alpha, gto3.nx, gto4.nx, tau)
+                                    term5 = self.compute_E(gto3.coords[1], gto4.coords[1], gto3.alpha, gto4.alpha, gto3.ny, gto4.ny, nu)
+                                    term6 = self.compute_E(gto3.coords[2], gto4.coords[2], gto3.alpha, gto4.alpha, gto3.nz, gto4.nz, phi)
                                     term7 = np.power(-1, tau+nu+phi)
                                     term8 = self.compute_R(t+tau, u+nu, v+phi, 0, alpha, P, Q)
                                     val += term1*term2*term3*term4*term5*term6*term7*term8
