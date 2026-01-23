@@ -117,24 +117,30 @@ double compute_boys(int n, double T) {
     /*Compute the Boys function using the confluent hypergeometric function 1F1, which is used in the evaluation of nuclear attraction integrals.*/
     return gsl_sf_hyperg_1F1(n+0.5, n+1.5, -T) / (2.0*n + 1.0);
 }
-double compute_E(int ai, int bi, int t, double A, double B, double alpha, double beta) {
-    /*Compute the nuclear attraction integral between two GTOs along a single axis using recursion.*/
+double compute_E(double A, double B, double alpha, double beta, int ai, int bi, int t) {
+    /*Compute the nuclear attraction integral between two GTOs along a single axis using recursion.
+      Arguments:
+          A, B: origin of Gaussian 'a' and 'b'
+          alpha, beta: exponent of Gaussian 'a' and 'b'
+          ai, bi: orbital angular momentum number on Gaussian 'a' and 'b'
+          t: number nodes in Hermite (depends on type of integral, e.g. always zero for overlap integrals)
+    */
     double p = alpha + beta;
     double q = alpha * beta / p;
     double Qx = A - B;
 
-    if (ai < 0 || t > ai+bi) {return 0.0;}
+    if (t < 0 || t > ai+bi) {return 0.0;}
     if (ai == 0 && bi == 0 && t == 0) {return exp(-q * Qx * Qx);}
     if (bi == 0) {
-        double term1 = (1/(2*p)) * compute_E(ai-1, bi, t-1, A, B, alpha, beta);
-        double term2 = (q * Qx / alpha) * compute_E(ai-1, bi, t, A, B, alpha, beta);
-        double term3 = (t+1) * compute_E(ai-1, bi, t+1, A, B, alpha, beta);
+        double term1 = (1/(2*p)) * compute_E(A, B, alpha, beta, ai-1, bi, t-1);
+        double term2 = (q * Qx / alpha) * compute_E(A, B, alpha, beta, ai-1, bi, t);
+        double term3 = (t+1) * compute_E(A, B, alpha, beta, ai-1, bi, t+1);
         return term1 - term2 + term3;
     }
 
-    double term1 = (1/(2*p)) * compute_E(ai, bi-1, t-1, A, B, alpha, beta);
-    double term2 = (q * Qx / beta) * compute_E(ai, bi-1, t, A, B, alpha, beta);
-    double term3 = (t+1) * compute_E(ai, bi-1, t+1, A, B, alpha, beta);
+    double term1 = (1/(2*p)) * compute_E(A, B, alpha, beta, ai, bi-1, t-1);
+    double term2 = (q * Qx / beta) * compute_E(A, B, alpha, beta, ai, bi-1, t);
+    double term3 = (t+1) * compute_E(A, B, alpha, beta, ai, bi-1, t+1);
     return term1 + term2 + term3;
 }
 
@@ -189,9 +195,9 @@ double compute_nuclear_attraction(STOPrimitive gto1, STOPrimitive gto2, double R
     for (int t = 0; t <= gto1.nx + gto2.nx; t++) {
         for (int u = 0; u <= gto1.ny + gto2.ny; u++) {
             for (int v = 0; v <= gto1.nz + gto2.nz; v++) {
-                double term1 = compute_E(gto1.nx, gto2.nx, t, gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha);
-                double term2 = compute_E(gto1.ny, gto2.ny, u, gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha);
-                double term3 = compute_E(gto1.nz, gto2.nz, v, gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha);
+                double term1 = compute_E(gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx, t);
+                double term2 = compute_E(gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny, u);
+                double term3 = compute_E(gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz, v);
                 double term4 = compute_R(t, u, v, 0, p, P, R);
                 val += term1 * term2 * term3 * term4;
             }
@@ -238,12 +244,12 @@ double compute_repulsion(STOPrimitive gto1, STOPrimitive gto2, STOPrimitive gto3
                 for (int tau = 0; tau <= gto3.nx + gto4.nx; tau++) {
                     for (int nu = 0; nu <= gto3.ny + gto4.ny; nu++) {
                         for (int phi = 0; phi <= gto3.nz + gto4.nz; phi++) {
-                            double term1 = compute_E(gto1.nx, gto2.nx, t, gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha);
-                            double term2 = compute_E(gto1.ny, gto2.ny, u, gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha);
-                            double term3 = compute_E(gto1.nz, gto2.nz, v, gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha);
-                            double term4 = compute_E(gto3.nx, gto4.nx, tau, gto3.cords[0], gto4.cords[0], gto3.alpha, gto4.alpha);
-                            double term5 = compute_E(gto3.ny, gto4.ny, nu, gto3.cords[1], gto4.cords[1], gto3.alpha, gto4.alpha);
-                            double term6 = compute_E(gto3.nz, gto4.nz, phi, gto3.cords[2], gto4.cords[2], gto3.alpha, gto4.alpha);
+                            double term1 = compute_E(gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx, t);
+                            double term2 = compute_E(gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny, u);
+                            double term3 = compute_E(gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz, v);
+                            double term4 = compute_E(gto3.cords[0], gto4.cords[0], gto3.alpha, gto4.alpha, gto3.nx, gto4.nx, tau);
+                            double term5 = compute_E(gto3.cords[1], gto4.cords[1], gto3.alpha, gto4.alpha, gto3.ny, gto4.ny, nu);
+                            double term6 = compute_E(gto3.cords[2], gto4.cords[2], gto3.alpha, gto4.alpha, gto3.nz, gto4.nz, phi);
                             double term7 = pow(-1, tau + nu + phi);
                             double term8 = compute_R(t + tau, u + nu, v + phi, 0, alpha, P, Q);
                             val += term1 * term2 * term3 * term4 * term5 * term6 * term7 * term8;
