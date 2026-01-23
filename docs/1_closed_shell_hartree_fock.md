@@ -1,7 +1,7 @@
 # Hartree-Fock Theory for Closed-Shell Systems
 
 *   [Theory](#Theory)
-    *   [The Slater Determinant $`\Psi`$ ](#The-Slater-Determinant-$\Psi$)
+    *   [The Slater Determinant $`\Psi`$ ](#The-Slater-Determinant-$\Psi$ )
     *   [The Born-Oppenheimer Approximation of $`\hat{H}`$ ](#The-Born-Oppenheimer-Approximation-of-$\hat{H}$)
     *   [Constrained Optimization To Obtain Ground State Energy: $`E_{HF}`$ ](#Constrained-Optimization-To-Obtain-Ground-State-Energy-$E_{HF}$)
     *   [Unitary Transformation to Canonical Form](#Unitary-Transformation-to-Canonical-Form)
