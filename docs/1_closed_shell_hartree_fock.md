@@ -1,13 +1,13 @@
 # Hartree-Fock Theory for Closed-Shell Systems
 
 *   [Theory](#Theory)
-    *   [The Slater Determinant $`\Psi`$ ](#The-Slater-Determinant-$`\Psi`$ )
-    *   [The Born-Oppenheimer Approximation of $`\hat{H}`$ ](#the-born-oppenheimer-approximation-of-hath )
-    *   [Constrained Optimization To Obtain Ground State Energy: $`E_{HF}`$ ](#Constrained-Optimization-To-Obtain-Ground-State-Energy-$`E_{HF}`$ )
+    *   [The Slater Determinant $`\Psi`$ ](#the-slater-determinant-psi)
+    *   [The Born-Oppenheimer Approximation of $`\hat{H}`$ ](#the-born-oppenheimer-approximation-of-hath)
+    *   [Constrained Optimization To Obtain Ground State Energy: $`E_{HF}`$ ](#constrained-optimization-to-obtain-ground-state-energy-e_hf)
     *   [Unitary Transformation to Canonical Form](#Unitary-Transformation-to-Canonical-Form)
     *   [Basis Set Expansion and Roothaan-Hall Equations](#Basis-Set-Expansion-and-Roothaan-Hall-Equations)
 *   [Computational Implementation](#Computational-Implementation)
-    *   [Contracted Gaussian Basis Sets: STO-nG](#Contracted-Gaussian-Basis-Sets:-STO-nG)
+    *   [Contracted Gaussian Basis Sets: STO-nG](#Contracted-Gaussian-Basis-Sets-STO-nG)
     *   [Overlap, Kinetic, and Nuclear Attraction Integrals](#Overlap,-Kinetic,-and-Nuclear-Attraction-Integrals)
     *   [Two-Electron Repulsion Integrals](#Two-Electron-Repulsion-Integrals)
     *   [Self-Consistent Field (SCF) Procedure](#Self-Consistent-Field-(SCF)-Procedure)
