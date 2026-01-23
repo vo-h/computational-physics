@@ -2,7 +2,7 @@
 
 *   [Theory](#Theory)
     *   [The Slater Determinant $`\Psi`$ ](#The-Slater-Determinant-$`\Psi`$ )
-    *   [The Born-Oppenheimer Approximation of $`\hat{H}`$ ](#The-Born-Oppenheimer-Approximation-of-$`\hat{H}`$ )
+    *   [The Born-Oppenheimer Approximation of $`\hat{H}`$ ](#the-born-oppenheimer-approximation-of-hath )
     *   [Constrained Optimization To Obtain Ground State Energy: $`E_{HF}`$ ](#Constrained-Optimization-To-Obtain-Ground-State-Energy-$`E_{HF}`$ )
     *   [Unitary Transformation to Canonical Form](#Unitary-Transformation-to-Canonical-Form)
     *   [Basis Set Expansion and Roothaan-Hall Equations](#Basis-Set-Expansion-and-Roothaan-Hall-Equations)
