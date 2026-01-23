@@ -3,7 +3,7 @@
 *   [Theory](#Theory)
     *   [The Slater Determinant $`\Psi`$ ](#The-Slater-Determinant-$\Psi$)
     *   [The Born-Oppenheimer Approximation of $`\hat{H}`$ ](#The-Born-Oppenheimer-Approximation-of-$\hat{H}$)
-    *   [Constrained Optimization To Obtain Ground State Energy: $`E_{HF}`$ ](#Constrained-Optimization-To-Obtain-Ground-State-Energy:-$E_{HF}$)
+    *   [Constrained Optimization To Obtain Ground State Energy: $`E_{HF}`$ ](#Constrained-Optimization-To-Obtain-Ground-State-Energy-$E_{HF}$)
     *   [Unitary Transformation to Canonical Form](#Unitary-Transformation-to-Canonical-Form)
     *   [Basis Set Expansion and Roothaan-Hall Equations](#Basis-Set-Expansion-and-Roothaan-Hall-Equations)
 *   [Computational Implementation](#Computational-Implementation)
@@ -53,7 +53,7 @@ $$
 \hat{H} = -\frac{1}{2}\sum_{i}\nabla_i^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i\lt j} \frac{1}{r_{ij}} + \sum_{A\lt B} \frac{Z_A Z_B}{R_{AB}} = -\frac{1}{2}\sum_{i}\nabla_i^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i\lt j} \frac{1}{r_{ij}} + V_{NN}
 $$
 
-### Constrained Optimization To Obtain Ground State Energy: $E_{HF}$
+### Constrained Optimization To Obtain Ground State Energy $E_{HF}$
 
 Ignoring the trivial nuclear repulsion term $V_{NN}$ for now, we can compute the Hartree-Fock electronic energy as:
 
