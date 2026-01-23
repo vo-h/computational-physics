@@ -45,16 +45,6 @@ class Atom(BaseModel):
                 ))
         return orbitals
     
-    @property
-    def cc(self) -> np.ndarray:
-        """The contracted coefficients of the GTOs in the STO-3G expansion as a numpy array."""
-        return np.stack([orb.cc for orb in self.orbitals])
-
-    @property
-    def alpha(self) -> np.ndarray:
-        """The exponent coefficients of the GTOs in the STO-3G expansion as a numpy array."""
-        return np.stack([orb.alpha for orb in self.orbitals])
-    
     @model_validator(mode='after')
     def convert_coords(self) -> Self:
         """Convert the coordinates of the atom to Bohr."""

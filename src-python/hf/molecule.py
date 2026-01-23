@@ -37,16 +37,6 @@ class Molecule(BaseModel):
     def orbitals(self) -> list[STOGOrbital]:
         """List of all atomic orbitals in the molecule."""
         return [orb for atom in self.atoms for orb in atom.orbitals]
-
-    @property
-    def cc(self) -> np.ndarray:
-        """The contracted coefficients of the GTOs in the STO-nG expansion as a numpy array."""
-        return np.stack([orb.cc for orb in self.orbitals])
-    
-    @property
-    def alpha(self) -> np.ndarray:
-        """The exponent coefficients of the GTOs in the STO-nG expansion as a numpy array."""
-        return np.stack([orb.alpha for orb in self.orbitals])
     
     @property
     def basis(self) -> str:

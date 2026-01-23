@@ -5,7 +5,7 @@ import sys
 
 @click.command()
 @click.option('--input-file', type=click.Path(exists=True), help='Input file for the molecule')
-@click.option('--method', type=click.Choice(['1e-mat', 'guesses', 'scf']), default='scf', help='Method to use')
+@click.option('--method', type=click.Choice(['1e-mat', '2e-mat', 'guesses', 'scf']), default='scf', help='Method to use')
 def hf(input_file: str, method: str):
     """Perform SCF on a molecule. Have options for input file, and method used like compute overlap, hamiltonian and final SCF."""
     
@@ -19,6 +19,13 @@ def hf(input_file: str, method: str):
             print(f"Overlap matrix:\n{S}\n")
             print(f"Kinetic energy matrix:\n{T}\n")
             print(f"Nuclear attraction matrix:\n{V}")
+        elif method == '2e-mat':
+            ERI = molecule.Vee
+            with np.printoptions(linewidth=sys.maxsize):
+                for i in range(ERI.shape[0]):
+                    for j in range(ERI.shape[1]):
+                        print(f"Two-electron repulsion integrals (ERI) tensor slice [{i},{j},:,:]:\n{ERI[i,j,:,:]}\n")
+
         elif method == 'guesses':
             F0 = molecule.F0
             C0 = molecule.C0
