@@ -1,7 +1,6 @@
-use std::f64::consts::PI;
-use xsf::hyp1f1;
-
 pub mod stog_primitive {
+    use std::f64::consts::PI;
+    #[derive(Clone, Debug)]
     pub struct STOGPrimitive {
         pub coords: (f64, f64, f64),
         pub alpha: f64,
@@ -30,23 +29,25 @@ pub mod stog_primitive {
             let numerator = (8.0 * alpha).powi((nx + ny + nz) as i32) * factorial(nx as u32) * factorial(ny as u32) * factorial(nz as u32);
             let denominator = factorial(2 * nx as u32) * factorial(2 * ny as u32) * factorial(2 * nz as u32);
             let N = prefactor * (numerator / denominator).sqrt();
-            StoGPrimitive {
-                coords,
-                alpha,
-                cc,
-                nx,
-                ny,
-                nz,
-                nx + ny + nz,
-                N,
+            return STOGPrimitive {
+                coords: coords,
+                alpha: alpha,
+                cc: cc,
+                nx: nx,
+                ny: ny,
+                nz: nz,
+                l: nx + ny + nz as i32,
+                N: N,
             }
         }
+
     }
 }
 
 pub mod stog_orbital {
     use super::stog_primitive::STOGPrimitive;
 
+    #[derive(Clone, Debug)]
     pub struct STOGOrbital {
         pub atom: String,
         pub shell: String,
@@ -55,19 +56,60 @@ pub mod stog_orbital {
     }
 
     impl STOGOrbital {
-        pub fn new(atom: String, shell: String, coords: (f64, f64, f64), cc: Vec<f64>, alpha: Vec<f64>, nx: Vec<u32>, ny: Vec<u32>, nz: Vec<u32>) -> Self {
+        pub fn new(atom: String, shell: String, coords: (f64, f64, f64), cc: Vec<f64>, alpha: Vec<f64>, nx: Vec<i32>, ny: Vec<i32>, nz: Vec<i32>) -> Self {
             let mut gtos = Vec::new();
             for i in 0..cc.len() {
                 gtos.push(STOGPrimitive::new(coords, alpha[i], cc[i], nx[i], ny[i], nz[i]));
             }
             STOGOrbital { atom, shell, coords, gtos }
         }
+
+        pub fn from_string(atom: String, coords: (f64, f64, f64), lines: &str) -> Self {
+            let items = lines.split('\n').collect::<Vec<&str>>();
+            let shell: String = items[0].trim().chars().take(1).collect();
+            let mut gtos = Vec::<STOGPrimitive>::new();
+
+            for i in 1..items.len() {
+                let parts = items[i].trim().split_whitespace().collect::<Vec<&str>>();
+                let alpha: f64 = parts[0].replace("D", "E").parse().unwrap();
+                let cc: f64 = parts[1].replace("D", "E").parse().unwrap();
+
+                if shell == "S" {
+                    let prim = STOGPrimitive::new(coords, alpha, cc, 0, 0, 0);
+                    gtos.push(prim);
+                } else if shell == "P" {
+                    let prim_x = STOGPrimitive::new(coords, alpha, cc, 1, 0, 0);
+                    let prim_y = STOGPrimitive::new(coords, alpha, cc, 0, 1, 0);
+                    let prim_z = STOGPrimitive::new(coords, alpha, cc, 0, 0, 1);
+                    gtos.push(prim_x);
+                    gtos.push(prim_y);
+                    gtos.push(prim_z);
+                } else if shell == "D" {
+                    let prim_xx = STOGPrimitive::new(coords, alpha, cc, 2, 0, 0);
+                    let prim_yy = STOGPrimitive::new(coords, alpha, cc, 0, 2, 0);
+                    let prim_zz = STOGPrimitive::new(coords, alpha, cc, 0, 0, 2);
+                    let prim_xy = STOGPrimitive::new(coords, alpha, cc, 1, 1, 0);
+                    let prim_xz = STOGPrimitive::new(coords, alpha, cc, 1, 0, 1);
+                    let prim_yz = STOGPrimitive::new(coords, alpha, cc, 0, 1, 1);
+                    gtos.push(prim_xx);
+                    gtos.push(prim_yy);
+                    gtos.push(prim_zz);
+                    gtos.push(prim_xy);
+                    gtos.push(prim_xz);
+                    gtos.push(prim_yz);
+                }
+                
+            }
+            return STOGOrbital {atom: atom, shell: shell, coords: coords, gtos: gtos};
+        }
     }
 }
 
 pub mod stog_integrator {
+    use xsf::hyp1f1;
+    use std::f64::consts::PI;
     use super::stog_primitive::STOGPrimitive;
-    use super::stog_orbital::STGOrbital;
+    use super::stog_orbital::STOGOrbital;
     
     pub fn compute_Sij(orb1: &STOGOrbital, orb2: &STOGOrbital) -> f64 {
 
@@ -92,7 +134,6 @@ pub mod stog_integrator {
     }
 
     pub fn compute_Tij(orb1: &STOGOrbital, orb2: &STOGOrbital) -> f64 {
-        let tij = 0.0;
 
         fn compute_D(A: f64, B: f64, alpha: f64, beta: f64, ai: i32, bi: i32, t: i32) -> f64 {
             let p = alpha + beta;
@@ -111,7 +152,8 @@ pub mod stog_integrator {
             let term6 = compute_D(orb1.coords.2, orb2.coords.2, orb1.alpha, orb2.alpha, orb1.nz, orb2.nz, 0);
             return -0.5 * (term1*term5*term6 + term4*term2*term6 + term4*term5*term3);
         }
-        
+
+        let mut tij = 0.0;
         for u in 0..orb1.gtos.len() {
             for v in 0..orb2.gtos.len() {
                 let gto1 = &orb1.gtos[u];
@@ -160,14 +202,14 @@ pub mod stog_integrator {
 
     pub fn compute_Vijkl(orb1: &STOGOrbital, orb2: &STOGOrbital, orb3: &STOGOrbital, orb4: &STOGOrbital) -> f64 {
         fn compute_Vabcd(gto1: &STOGPrimitive, gto2: &STOGPrimitive, gto3: &STOGPrimitive, gto4: &STOGPrimitive) -> f64 {
-            p = gto1.alpha + gto2.alpha;
-            q = gto3.alpha + gto4.alpha;
-            P = (
+            let p = gto1.alpha + gto2.alpha;
+            let q = gto3.alpha + gto4.alpha;
+            let P = (
                 (gto1.alpha * gto1.coords.0 + gto2.alpha * gto2.coords.0) / p,
                 (gto1.alpha * gto1.coords.1 + gto2.alpha * gto2.coords.1) / p,
                 (gto1.alpha * gto1.coords.2 + gto2.alpha * gto2.coords.2) / p,
             );
-            Q = (
+            let Q = (
                 (gto3.alpha * gto3.coords.0 + gto4.alpha * gto4.coords.0) / q,
                 (gto3.alpha * gto3.coords.1 + gto4.alpha * gto4.coords.1) / q,
                 (gto3.alpha * gto3.coords.2 + gto4.alpha * gto4.coords.2) / q,
@@ -224,18 +266,18 @@ pub mod stog_integrator {
         if bi == 0 {
             let term1 = (1.0/(2.0*p)) * compute_E(A, B, alpha, beta, ai-1, 0, t-1);
             let term2 = - (q * Qx / alpha) * compute_E(A, B, alpha, beta, ai-1, 0, t);
-            let term3 = (t + 1) * compute_E(A, B, alpha, beta, ai-1, 0, t+1);
+            let term3 = (t + 1) as f64 * compute_E(A, B, alpha, beta, ai-1, 0, t+1);
             return term1 + term2 + term3;   
         }
         let term1 = (1.0/(2.0*p)) * compute_E(A, B, alpha, beta, ai, bi-1, t-1);
         let term2 = (q * Qx / beta) * compute_E(A, B, alpha, beta, ai, bi-1, t);
-        let term3 = (t + 1) * compute_E(A, B, alpha, beta, ai, bi-1, t+1);
+        let term3 = (t + 1) as f64 * compute_E(A, B, alpha, beta, ai, bi-1, t+1);
         return term1 + term2 + term3;   
     }
 
     fn compute_R(t: i32, u: i32, v: i32, n: i32, p: f64, P: (f64, f64, f64), C: (f64, f64, f64)) -> f64 {
 
-        fn boys(n: u32, T: f64) -> f64 {
+        fn boys(n: i32, T: f64) -> f64 {
             return hyp1f1(n as f64 + 0.5, n as f64 + 1.5, -T) / (2.0 * n as f64 + 1.0);
         }
         
