@@ -17,7 +17,10 @@ struct EigenPairs {
     pub vectors: DMatrix<f64>,
 }
 
-fn sort_by_eigenvalues(eigvals: &Vec<f64>, eigvecs: &DMatrix<f64>) -> EigenPairs {
+fn get_sorted_eig(matrix: &DMatrix<f64>) -> EigenPairs {
+    let eig = matrix.clone().symmetric_eigen();
+    let eigvals = eig.eigenvalues;
+    let eigvecs = eig.eigenvectors;
     // Sort eigenvectors by eigenvalues ascending
     let mut eig_pairs: Vec<(f64, Vec<f64>)> = eigvals.iter().cloned()
         .zip(eigvecs.column_iter().map(|col| col.iter().cloned().collect()))
@@ -159,39 +162,33 @@ impl Molecule {
     pub fn compute_S12(&self) -> DMatrix<f64> {
         let S = self.compute_S();
         let eig = S.symmetric_eigen();
-        let mut eigvals = eig.eigenvalues;
+        let eigvals = eig.eigenvalues;
         let eigvecs = eig.eigenvectors;
-        eigvals = eigvals.map(|x| 1.0 / x.sqrt());
+        let lambda12 = DMatrix::from_diagonal(&eigvals.map(|x| 1.0 / x.sqrt()));
         let eigvecst = eigvecs.transpose();
-        let res = eigvecs * eigvals * eigvecst;
-        return res;
+        return &eigvecs * &lambda12 * &eigvecst;
+
     }
 
     pub fn compute_F0(&self) -> DMatrix<f64> {
         let S12 = self.compute_S12();
-        let S12T = S12.transpose();
         let H = self.compute_H();
-        return S12T * H * S12;
+        return &S12.transpose() * &H * &S12;
     }
 
     pub fn compute_C0(&self) -> DMatrix<f64> {
         let F0 = self.compute_F0();
         let S12 = self.compute_S12();
-        let eig = F0.symmetric_eigen();
-        let eigvals = eig.eigenvalues;
-        let eigvecs = eig.eigenvectors;
-        
-        let sorted_eig =  sort_by_eigenvalues(&eigvals.data.as_vec(), &eigvecs);
-        return S12 * sorted_eig.vectors;
+        let sorted_eig =  get_sorted_eig(&F0);
+        return &S12 * &sorted_eig.vectors;
     }
 
     pub fn compute_D0(&self) -> DMatrix<f64> {
-        let occ =  self.orbitals.len() / 2;
-        let mut C0 = self.compute_C0();
-        C0 = C0.view_mut((0, 0), (occ, occ)).into_owned();
-        let C0T = C0.transpose();
-        let D0 = C0 * C0T;
-        return D0;
+        let total_electrons: u8 = self.atoms.iter().map(|a| a.Z).sum();
+        let occ = ((total_electrons as f64) / 2.0).ceil() as usize;
+        let C0 = self.compute_C0();
+        let C0_occ = C0.columns(0, occ);
+        return &C0_occ * &C0_occ.transpose();
     }
 
     pub fn compute_E0(&self) -> f64 {
@@ -200,8 +197,54 @@ impl Molecule {
         return 2.0 * (D0.component_mul(&H)).sum();
     }
 
-    pub fn compute_CHF(&self) -> f64 {
-        // Placeholder implementation
-        0.0
+    pub fn compute_F(&self, D: &DMatrix<f64>, Vee: &Vec<Vec<Vec<Vec<f64>>>>) -> DMatrix<f64> {
+        let n = self.orbitals.len();
+        let mut F = self.compute_H();
+
+        for i in 0..n {
+            for j in 0..n {
+                let mut val = 0.0;
+                for k in 0..n {
+                    for l in 0..n {
+                        val += D[(k, l)] * (2.0 * Vee[i][j][k][l] - Vee[i][l][k][j]);
+                    }
+                }
+                F[(i, j)] += val;
+            }
+        }
+        return F;
+    }
+
+    pub fn compute_CHF(&self, tol: f64, max_iter: usize) -> () {
+        let total_electrons: u8 = self.atoms.iter().map(|a| a.Z).sum();
+        let occ = ((total_electrons as f64) / 2.0).ceil() as usize;
+
+        let mut D = self.compute_D0();
+        let mut E = self.compute_E0();
+        let mut E_new;
+        let H = self.compute_H();
+        let Vee = self.compute_Vee();
+        let S12 = self.compute_S12();
+
+        for i in 0..max_iter {
+            
+            // Compute Fock matrix
+            let F = self.compute_F(&D, &Vee);
+            let F_ortho  = &S12.transpose() * &F * &S12;
+            let sorted_eig = get_sorted_eig(&F_ortho);
+            let C = &S12 * &sorted_eig.vectors;
+            let C_occ = C.columns(0, occ);
+            D = &C_occ * &C_occ.transpose();
+            let sum = &D + &H;
+            E_new = D.component_mul(&sum).sum();
+
+            if (E - E_new).abs() < tol {
+                println!("SCF converged in {} iterations.", i + 1);
+                println!("Final electronic energy E: {:.6}", E_new);
+                return;
+            }
+            println!("Iteration {}: E = {:.6}", i + 1, E_new);
+            E = E_new;
+        }
     }
 }

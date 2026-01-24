@@ -55,5 +55,9 @@ fn main() -> () {
         println!("Initial density matrix D0:\n {a:.5}", a=D0);
         let E0 = molecule.compute_E0();
         println!("Initial electronic energy E0: {:.5}", E0);
+    } else if args.method == "scf" {
+        molecule.compute_CHF(1e-6, 100);
+    } else {
+        println!("Unknown method: {}", args.method);
     }
 }
