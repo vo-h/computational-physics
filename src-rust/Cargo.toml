@@ -3,6 +3,14 @@ name = "src-rust"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "src_rust"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hf"
+path = "src/main.rs"
+
 [dependencies]
 xsf = "0.4.0"
 nalgebra = "0.34.1"
