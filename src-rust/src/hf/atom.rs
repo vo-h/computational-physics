@@ -36,15 +36,15 @@ impl Atom {
             
             // Case: new orbital type, but we have already collected one
             } else if curr.len() > 0 && ! line.starts_with(' ') {
-                let orbital = STOGOrbital::from_string("O".to_string(), coords, &curr);
-                orbitals.push(orbital);
+                let mut new_orbitals = STOGOrbital::from_string("O".to_string(), coords, &curr);
+                orbitals.append(&mut new_orbitals);
                 curr = line.to_string();
             }
         }
 
         if curr.len() > 0 && !curr.contains("****") {
-            let orbital = STOGOrbital::from_string("O".to_string(), coords, &curr);
-            orbitals.push(orbital);
+            let mut new_orbitals = STOGOrbital::from_string("O".to_string(), coords, &curr);
+            orbitals.append(&mut new_orbitals);
         }
 
         Ok(Atom {

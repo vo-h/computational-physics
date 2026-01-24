@@ -27,9 +27,21 @@ fn main() -> () {
     let input = std::fs::read_to_string(args.input).expect("Failed to read input file");
     
     let molecule = hf::molecule::Molecule::from_string(&input);
-    if args.method == "overlap" {
+    if args.method == "1e-mat" {
         let S = molecule.compute_S();
-        println!("Overlap matrix S:\n {:#?}", S);
+        println!("Overlap matrix S:\n {a:.5}", a=S);
+
+        let T = molecule.compute_T();
+        println!("Kinetic energy matrix T:\n {a:.5}", a=T);
+
+        let V = molecule.compute_Vne();
+        println!("Nuclear attraction matrix Vne:\n {a:.5}", a=V);
+        return;
+    } else if args.method == "kinetic" {
+        let T = molecule.compute_T();
+        println!("Kinetic energy matrix T:\n {a:.5}", a=T);
+    } else {
+        println!("Unknown method: {}", args.method);
         return;
     }
 }

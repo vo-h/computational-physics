@@ -64,43 +64,55 @@ pub mod stog_orbital {
             STOGOrbital { atom, shell, coords, gtos }
         }
 
-        pub fn from_string(atom: String, coords: (f64, f64, f64), lines: &str) -> Self {
+        pub fn from_string(atom: String, coords: (f64, f64, f64), lines: &str) -> Vec<Self> {
             let items = lines.split('\n').collect::<Vec<&str>>();
             let shell: String = items[0].trim().chars().take(1).collect();
-            let mut gtos = Vec::<STOGPrimitive>::new();
-
+            
+            // Parse the alpha and cc values for all primitives
+            let mut alphas = Vec::<f64>::new();
+            let mut ccs = Vec::<f64>::new();
             for i in 1..items.len() {
                 let parts = items[i].trim().split_whitespace().collect::<Vec<&str>>();
                 let alpha: f64 = parts[0].replace("D", "E").parse().unwrap();
                 let cc: f64 = parts[1].replace("D", "E").parse().unwrap();
-
-                if shell == "S" {
-                    let prim = STOGPrimitive::new(coords, alpha, cc, 0, 0, 0);
-                    gtos.push(prim);
-                } else if shell == "P" {
-                    let prim_x = STOGPrimitive::new(coords, alpha, cc, 1, 0, 0);
-                    let prim_y = STOGPrimitive::new(coords, alpha, cc, 0, 1, 0);
-                    let prim_z = STOGPrimitive::new(coords, alpha, cc, 0, 0, 1);
-                    gtos.push(prim_x);
-                    gtos.push(prim_y);
-                    gtos.push(prim_z);
-                } else if shell == "D" {
-                    let prim_xx = STOGPrimitive::new(coords, alpha, cc, 2, 0, 0);
-                    let prim_yy = STOGPrimitive::new(coords, alpha, cc, 0, 2, 0);
-                    let prim_zz = STOGPrimitive::new(coords, alpha, cc, 0, 0, 2);
-                    let prim_xy = STOGPrimitive::new(coords, alpha, cc, 1, 1, 0);
-                    let prim_xz = STOGPrimitive::new(coords, alpha, cc, 1, 0, 1);
-                    let prim_yz = STOGPrimitive::new(coords, alpha, cc, 0, 1, 1);
-                    gtos.push(prim_xx);
-                    gtos.push(prim_yy);
-                    gtos.push(prim_zz);
-                    gtos.push(prim_xy);
-                    gtos.push(prim_xz);
-                    gtos.push(prim_yz);
-                }
-                
+                alphas.push(alpha);
+                ccs.push(cc);
             }
-            return STOGOrbital {atom: atom, shell: shell, coords: coords, gtos: gtos};
+
+            let mut orbitals = Vec::<STOGOrbital>::new();
+
+            if shell == "S" {
+                let mut gtos = Vec::<STOGPrimitive>::new();
+                for i in 0..alphas.len() {
+                    let prim = STOGPrimitive::new(coords, alphas[i], ccs[i], 0, 0, 0);
+                    gtos.push(prim);
+                }
+                orbitals.push(STOGOrbital {atom: atom.clone(), shell: shell.clone(), coords: coords, gtos: gtos});
+            } else if shell == "P" {
+                // Create three separate orbitals for px, py, pz
+                let angular_momentum = vec![(1, 0, 0), (0, 1, 0), (0, 0, 1)];
+                for (nx, ny, nz) in angular_momentum {
+                    let mut gtos = Vec::<STOGPrimitive>::new();
+                    for i in 0..alphas.len() {
+                        let prim = STOGPrimitive::new(coords, alphas[i], ccs[i], nx, ny, nz);
+                        gtos.push(prim);
+                    }
+                    orbitals.push(STOGOrbital {atom: atom.clone(), shell: shell.clone(), coords: coords, gtos: gtos});
+                }
+            } else if shell == "D" {
+                // Create six separate orbitals for dxx, dyy, dzz, dxy, dxz, dyz
+                let angular_momentum = vec![(2, 0, 0), (0, 2, 0), (0, 0, 2), (1, 1, 0), (1, 0, 1), (0, 1, 1)];
+                for (nx, ny, nz) in angular_momentum {
+                    let mut gtos = Vec::<STOGPrimitive>::new();
+                    for i in 0..alphas.len() {
+                        let prim = STOGPrimitive::new(coords, alphas[i], ccs[i], nx, ny, nz);
+                        gtos.push(prim);
+                    }
+                    orbitals.push(STOGOrbital {atom: atom.clone(), shell: shell.clone(), coords: coords, gtos: gtos});
+                }
+            }
+            
+            return orbitals;
         }
     }
 }
