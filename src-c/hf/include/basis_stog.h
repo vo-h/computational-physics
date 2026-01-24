@@ -9,18 +9,17 @@ typedef struct {
     int nx; // Angular momentum quantum numbers along x-axis
     int ny; // Angular momentum quantum numbers along y-axis
     int nz; // Angular momentum quantum numbers along z-axis
-} STOPrimitive;
+} STOGPrimitive;
 
 typedef struct {
-    STOPrimitive *primitives; // Array of GTO primitives
+    STOGPrimitive *primitives; // Array of GTO primitives
     int n; // Number of GTO primitives in the STO-nG
-} STOOrbital ;
+} STOGOrbital;
 
 double compute_N(double alpha, int *n);
 
-double compute_Sij(STOOrbital orbital1, STOOrbital orbital2); /*https://content.wolfram.com/sites/19/2012/02/Ho.pdf*/
-double compute_Tij(STOOrbital orbital1, STOOrbital orbital2);
-double compute_VijR(STOOrbital orbital1, STOOrbital orbital2, double R[3]);
-double compute_Vijkl(STOOrbital orbital1, STOOrbital orbital2, STOOrbital orbital3, STOOrbital orbital4);
-
+double compute_Sij(STOGOrbital orbital1, STOGOrbital orbital2); /*https://content.wolfram.com/sites/19/2012/02/Ho.pdf*/
+double compute_Tij(STOGOrbital orbital1, STOGOrbital orbital2);
+double compute_VijR(STOGOrbital orbital1, STOGOrbital orbital2, double R[3]);
+double compute_Vijkl(STOGOrbital orbital1, STOGOrbital orbital2, STOGOrbital orbital3, STOGOrbital orbital4);
 #endif

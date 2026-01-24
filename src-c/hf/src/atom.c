@@ -64,7 +64,7 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, void *us
 }
 
 // Function to fetch orbital data from URL and parse into STOOrbital structures
-STOOrbital* fetch_orbital_data(char *url, double coords[3], int *num_orbitals, int num_gtos) {
+STOGOrbital* fetch_orbital_data(char *url, double coords[3], int *num_orbitals, int num_gtos) {
     CURL *curl;
     CURLcode res;
     CurlResponse response = {.data = NULL, .size = 0};
@@ -128,7 +128,7 @@ STOOrbital* fetch_orbital_data(char *url, double coords[3], int *num_orbitals, i
     }
     
     // Allocate array for orbitals
-    STOOrbital *orbitals = (STOOrbital *)malloc(orbital_count * sizeof(STOOrbital));
+    STOGOrbital *orbitals = (STOGOrbital *)malloc(orbital_count * sizeof(STOGOrbital));
     if (orbitals == NULL) {
         fprintf(stderr, "Failed to allocate memory for orbitals\n");
         free(response.data);
@@ -152,7 +152,7 @@ STOOrbital* fetch_orbital_data(char *url, double coords[3], int *num_orbitals, i
 
             shell_type = line[0];
             if (shell_type == 'S') {
-                STOPrimitive *primitives = (STOPrimitive *)malloc(num_gtos * sizeof(STOPrimitive));
+                STOGPrimitive *primitives = (STOGPrimitive *)malloc(num_gtos * sizeof(STOGPrimitive));
 
                 for (int i = 0; i < num_gtos; i++) {
                     // Move line pointer to next primitive line
@@ -164,7 +164,7 @@ STOOrbital* fetch_orbital_data(char *url, double coords[3], int *num_orbitals, i
                     replace_char(line, 'D', 'E'); // Replace Fortran-style exponent if present
                     sscanf(line, "%lf %lf", &alpha, &cc);
                     int n[3] = {0, 0, 0};
-                    STOPrimitive primitive = {
+                    STOGPrimitive primitive = {
                         .alpha = alpha,
                         .cc = cc,
                         .cords = {coords[0], coords[1], coords[2]},
@@ -194,13 +194,13 @@ STOOrbital* fetch_orbital_data(char *url, double coords[3], int *num_orbitals, i
 
                 // Create 3 orbitals (px, py, pz) with same primitives but different angular momentum
                 for (int p_idx = 0; p_idx < 3; p_idx++) {
-                    STOPrimitive *primitives = (STOPrimitive *)malloc(num_gtos * sizeof(STOPrimitive));
+                    STOGPrimitive *primitives = (STOGPrimitive *)malloc(num_gtos * sizeof(STOGPrimitive));
                     for (int i = 0; i < num_gtos; i++) {
                         int n[3] = {0, 0, 0};
                         if (p_idx == 0) n[0] = 1;
                         else if (p_idx == 1) n[1] = 1;
                         else if (p_idx == 2) n[2] = 1;
-                        STOPrimitive primitive = {
+                        STOGPrimitive primitive = {
                             .alpha = alphas[i],
                             .cc = ccs[i],
                             .cords = {coords[0], coords[1], coords[2]},

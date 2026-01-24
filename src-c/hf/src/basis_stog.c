@@ -16,107 +16,6 @@ double compute_N(double alpha, int *n) {
     return N;
 };
 
-/*Function to compute the overlap integral matrix: https://content.wolfram.com/sites/19/2012/02/Ho.pdf*/
-double compute_sx(double A, double B, double alpha, double beta, int ai, int bi) {
-    /*Compute the integral of the product of two GTOs along a single axis (x, y, or z) using recursion.*/
-
-    double P = (alpha * A + beta * B) / (alpha + beta);
-
-    /*Base cases for recursion*/
-    if (ai < 0 || bi < 0) {return 0.0;}
-    if (ai == 0 && bi == 0) {return 1;}
-    if (ai == 1 && bi == 0) {return -(A-P);}
-
-    /*Index recursion: eq. 11*/
-    if (ai > 1 && bi == 0) {
-        double term_1 = -(A-P) * compute_sx(A, B, alpha, beta, ai-1, 0);
-        double term_2 = (ai-1) / (2 * (alpha + beta)) * compute_sx(A, B, alpha, beta, ai-2, 0);
-        return term_1 + term_2;
-    }
-
-    /*Transfer equation: eq. 12*/
-    double term1 = compute_sx(A, B, alpha, beta, ai+1, bi-1);
-    double term2 = (A-B)*compute_sx(A, B, alpha, beta, ai, bi-1);
-    return term1 + term2;
-}
-
-double compute_Sij(STOOrbital orbital1, STOOrbital orbital2) {
-    /*Compute the overlap integral between two STO-nG orbitals by multiplying the integrals along*/
-
-    int n = orbital1.n; 
-    int m = orbital2.n;
-    double Sij = 0.0;
-    for (int u = 0; u < n; u++) {
-        for (int v = 0; v < m; v++) {
-            STOPrimitive gto1 = orbital1.primitives[u];
-            STOPrimitive gto2 = orbital2.primitives[v];
-            double coeff = gto1.cc * gto1.N * gto2.cc * gto2.N;
-            double r2 = pow(gto1.cords[0] - gto2.cords[0], 2) + pow(gto1.cords[1] - gto2.cords[1], 2) + pow(gto1.cords[2] - gto2.cords[2], 2);
-            double E_AB = exp(-gto1.alpha * gto2.alpha * r2 / (gto1.alpha + gto2.alpha));
-            double prefactor = pow(M_PI / (gto1.alpha + gto2.alpha), 1.5);
-            double sx = compute_sx(gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx);
-            double sy = compute_sx(gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny);
-            double sz = compute_sx(gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz);
-            double contribution = coeff * prefactor * E_AB * sx * sy * sz;
-            Sij += contribution;
-        }
-    }
-    return Sij;
-}
-
-/*https://content.wolfram.com/sites/19/2013/01/Ho_Kinetic.pdf*/
-double compute_tx(double A, double B, double alpha, double beta, int ai, int bi) {
-    /*Compute the kinetic energy integral between two GTOs along a single axis using recursion.*/
-
-    double P = (alpha * A + beta * B) / (alpha + beta);
-
-    /*Base cases for recursion*/
-    if (ai < 0 || bi < 0) {return 0.0;}
-    if (ai == 0 && bi == 0) {return 2*alpha*beta*compute_sx(A, B, alpha, beta, 1, 1);}
-    if (bi == 0) {return -ai*beta*compute_sx(A, B, alpha, beta, ai-1, 1) + 2*alpha*beta*compute_sx(A, B, alpha, beta, ai+1, 1);}
-    if (ai == 0) {return -bi*alpha*compute_sx(A, B, alpha, beta, 1, bi-1) + 2*alpha*beta*compute_sx(A, B, alpha, beta, 1, bi+1);}
-
-    /*Index recursion: eq. 11*/
-    double term1 = ai*bi*compute_sx(A, B, alpha, beta, ai-1, bi-1);
-    double term2 = 2*ai*beta*compute_sx(A, B, alpha, beta, ai-1, bi+1);
-    double term3 = 2*bi*alpha*compute_sx(A, B, alpha, beta, ai+1, bi-1);
-    double term4 = 4*alpha*beta*compute_sx(A, B, alpha, beta, ai+1, bi+1);
-    return 0.5*(term1 - term2 - term3 + term4);
-}
-
-double compute_Tij(STOOrbital orbital1, STOOrbital orbital2) {
-    /*Compute the kinetic energy integral between two STO-nG orbitals by multiplying the integrals along each axis and summing contributions from all GTO primitives.*/
-
-    int n = orbital1.n; 
-    int m = orbital2.n;
-    double Tij = 0.0;
-    for (int u = 0; u < n; u++) {
-        for (int v = 0; v < m; v++) {
-            STOPrimitive gto1 = orbital1.primitives[u];
-            STOPrimitive gto2 = orbital2.primitives[v];
-            double coeff = gto1.cc * gto1.N * gto2.cc * gto2.N;
-            double r2 = pow(gto1.cords[0] - gto2.cords[0], 2) + pow(gto1.cords[1] - gto2.cords[1], 2) + pow(gto1.cords[2] - gto2.cords[2], 2);
-            double E_AB = exp(-gto1.alpha * gto2.alpha * r2 / (gto1.alpha + gto2.alpha));
-            double prefactor = pow(M_PI / (gto1.alpha + gto2.alpha), 1.5);
-
-            double tx = compute_tx(gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx);
-            double ty = compute_tx(gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny);
-            double tz = compute_tx(gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz);
-
-            double sx = compute_sx(gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx);
-            double sy = compute_sx(gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny);
-            double sz = compute_sx(gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz);
-            Tij += coeff * prefactor * E_AB * (tx*sy*sz + sx*ty*sz + sx*sy*tz);
-        }
-    }
-    return Tij;
-}
-
-/*https://content.wolfram.com/sites/19/2014/12/Ho_Nuclear.pdf*/
-double compute_boys(int n, double T) {
-    /*Compute the Boys function using the confluent hypergeometric function 1F1, which is used in the evaluation of nuclear attraction integrals.*/
-    return gsl_sf_hyperg_1F1(n+0.5, n+1.5, -T) / (2.0*n + 1.0);
-}
 double compute_E(double A, double B, double alpha, double beta, int ai, int bi, int t) {
     /*Compute the nuclear attraction integral between two GTOs along a single axis using recursion.
       Arguments:
@@ -144,6 +43,11 @@ double compute_E(double A, double B, double alpha, double beta, int ai, int bi, 
     return term1 + term2 + term3;
 }
 
+double compute_boys(int n, double T) {
+    /*Compute the Boys function using the confluent hypergeometric function 1F1, which is used in the evaluation of nuclear attraction integrals.*/
+    return gsl_sf_hyperg_1F1(n+0.5, n+1.5, -T) / (2.0*n + 1.0);
+}
+
 double compute_R(int t, int u, int v, int n, double p, double P[3], double C[3]) {
     /*Returns the Coulomb auxiliary Hermite integrals
       Arguments:
@@ -153,43 +57,90 @@ double compute_R(int t, int u, int v, int n, double p, double P[3], double C[3])
           C: Nuclear center C
     */
     double RPC = sqrt(pow(P[0]-C[0], 2) + pow(P[1]-C[1], 2) + pow(P[2]-C[2], 2));
-    double T = p * RPC * RPC;
     double val = 0.0;
     
+    if (t < 0 || u < 0 || v < 0) {return 0.0;}
     if (t == 0 && u == 0 && v == 0) {
-        val += pow(-2*p, n) * compute_boys(n, T);
+        val += pow(-2*p, n) * compute_boys(n, p * RPC * RPC);
     } else if (t == 0 && u == 0) {
-        if (v > 1) {
-            val += (v-1) * compute_R(t, u, v-2, n+1, p, P, C);
-        }
+        val += (v-1) * compute_R(t, u, v-2, n+1, p, P, C);
         val += (P[2]-C[2]) * compute_R(t, u, v-1, n+1, p, P, C);
     } else if (t == 0) {
-        if (u > 1) {
-            val += (u-1) * compute_R(t, u-2, v, n+1, p, P, C);
-        }
+        val += (u-1) * compute_R(t, u-2, v, n+1, p, P, C);
         val += (P[1]-C[1]) * compute_R(t, u-1, v, n+1, p, P, C);
     } else {
-        if (t > 1) {
-            val += (t-1) * compute_R(t-2, u, v, n+1, p, P, C);
-        }
+        val += (t-1) * compute_R(t-2, u, v, n+1, p, P, C);
         val += (P[0]-C[0]) * compute_R(t-1, u, v, n+1, p, P, C);
     }
     return val;
 }
 
-double compute_Pi(STOPrimitive gto1, STOPrimitive gto2, int component) {
-    /*Calculate the weighted center for the integral in a given component (0=x, 1=y, 2=z)*/
-    double alpha_sum = gto1.alpha + gto2.alpha;
-    return (gto1.alpha * gto1.cords[component] + gto2.alpha * gto2.cords[component]) / alpha_sum;
+double compute_D(double A, double B, double alpha, double beta, int ai, int bi, int t) {
+    /*Returns the Dawson function D_n(T) using recursion.
+      Arguments:
+          A, B: origin of Gaussian 'a' and 'b'
+          alpha, beta: exponent of Gaussian 'a' and 'b'
+          ai, bi: orbital angular momentum number on Gaussian 'a' and 'b'
+    */
+    double p = alpha + beta;
+    if (t == 0) {return compute_E(A, B, alpha, beta, ai, bi, 0) * pow(M_PI/p, 0.5);}
+    double term1 = bi * compute_D(A, B, alpha, beta, ai, bi-1, t-1);
+    double term2 = 2 * beta * compute_D(A, B, alpha, beta, ai, bi+1, t-1);
+    return term1 - term2;
 }
 
-double compute_nuclear_attraction(STOPrimitive gto1, STOPrimitive gto2, double R[3]) {
+double compute_Sij(STOGOrbital orbital1, STOGOrbital orbital2) {
+    /*Compute the overlap integral between two STO-nG orbitals by multiplying the integrals along*/
+
+    int n = orbital1.n; 
+    int m = orbital2.n;
+    double Sij = 0.0;
+    for (int u = 0; u < n; u++) {
+        for (int v = 0; v < m; v++) {
+            STOGPrimitive gto1 = orbital1.primitives[u];
+            STOGPrimitive gto2 = orbital2.primitives[v];
+            double coeff = gto1.cc * gto1.N * gto2.cc * gto2.N;
+            double prefactor = pow(M_PI / (gto1.alpha + gto2.alpha), 1.5);
+            double s_x = compute_E(gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx, 0); 
+            double s_y = compute_E(gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny, 0);
+            double s_z = compute_E(gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz, 0);
+            Sij += coeff * prefactor * s_x * s_y * s_z;
+        }
+    }
+    return Sij;
+}
+
+double compute_Tij(STOGOrbital orbital1, STOGOrbital orbital2) {
+    /*Compute the kinetic energy integral between two STO-nG orbitals by multiplying the integrals along each axis and summing contributions from all GTO primitives.*/
+
+    int n = orbital1.n; 
+    int m = orbital2.n;
+    double Tij = 0.0;
+    for (int u = 0; u < n; u++) {
+        for (int v = 0; v < m; v++) {
+            STOGPrimitive gto1 = orbital1.primitives[u];
+            STOGPrimitive gto2 = orbital2.primitives[v];
+            double coeff = gto1.cc * gto1.N * gto2.cc * gto2.N;
+            double term1 = compute_D(gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx, 2);
+            double term2 = compute_D(gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny, 2);
+            double term3 = compute_D(gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz, 2);
+            double term4 = compute_D(gto1.cords[0], gto2.cords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx, 0);
+            double term5 = compute_D(gto1.cords[1], gto2.cords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny, 0);
+            double term6 = compute_D(gto1.cords[2], gto2.cords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz, 0);
+            Tij += -0.5 * coeff * (term1*term5*term6 + term4*term2*term6 + term4*term5*term3);
+        }
+    }
+    return Tij;
+}
+
+
+double compute_Vab(STOGPrimitive gto1, STOGPrimitive gto2, double R[3]) {
     /*Calculate the nuclear attraction integral between two GTO primitives for a single nucleus*/
     double p = gto1.alpha + gto2.alpha;
     double P[3];
-    P[0] = compute_Pi(gto1, gto2, 0);
-    P[1] = compute_Pi(gto1, gto2, 1);
-    P[2] = compute_Pi(gto1, gto2, 2);
+    P[0] = gto1.alpha * gto1.cords[0] / p + gto2.alpha * gto2.cords[0] / p;
+    P[1] = gto1.alpha * gto1.cords[1] / p + gto2.alpha * gto2.cords[1] / p;
+    P[2] = gto1.alpha * gto1.cords[2] / p + gto2.alpha * gto2.cords[2] / p;
     
     double val = 0.0;
     for (int t = 0; t <= gto1.nx + gto2.nx; t++) {
@@ -206,36 +157,36 @@ double compute_nuclear_attraction(STOPrimitive gto1, STOPrimitive gto2, double R
     return 2 * M_PI / p * val;
 }
 
-double compute_VijR(STOOrbital orbital1, STOOrbital orbital2, double R[3]) {        
-    /*Compute the nuclear attraction integral between two STO-nG orbitals by multiplying the integrals along each axis and summing contributions from all GTO primitives.*/
+double compute_VijR(STOGOrbital orbital1, STOGOrbital orbital2, double R[3]) {        
+    /*Compute the nuclear attraction integral between two STO-nG orbitals.*/
     int n = orbital1.n;
     int m = orbital2.n;
     double VijR = 0.0;
     
     for (int u = 0; u < n; u++) {
         for (int v = 0; v < m; v++) {
-            STOPrimitive gto1 = orbital1.primitives[u];
-            STOPrimitive gto2 = orbital2.primitives[v];
+            STOGPrimitive gto1 = orbital1.primitives[u];
+            STOGPrimitive gto2 = orbital2.primitives[v];
             double coeff = gto1.N * gto2.N * gto1.cc * gto2.cc;
-            VijR += coeff * compute_nuclear_attraction(gto1, gto2, R);
+            VijR += coeff * compute_Vab(gto1, gto2, R);
         }
     }
     return VijR;
 }
 
-double compute_repulsion(STOPrimitive gto1, STOPrimitive gto2, STOPrimitive gto3, STOPrimitive gto4) {
+double Vabcd(STOGPrimitive gto1, STOGPrimitive gto2, STOGPrimitive gto3, STOGPrimitive gto4) {
     /*Calculate the electron-electron repulsion integral between four GTO primitives. https://joshuagoings.com/2017/04/28/integrals/*/
     double p = gto1.alpha + gto2.alpha;
     double q = gto3.alpha + gto4.alpha;
     double alpha = p * q / (p + q);
     
     double P[3], Q[3];
-    P[0] = compute_Pi(gto1, gto2, 0);
-    P[1] = compute_Pi(gto1, gto2, 1);
-    P[2] = compute_Pi(gto1, gto2, 2);
-    Q[0] = compute_Pi(gto3, gto4, 0);
-    Q[1] = compute_Pi(gto3, gto4, 1);
-    Q[2] = compute_Pi(gto3, gto4, 2);
+    P[0] = gto1.alpha * gto1.cords[0] / p + gto2.alpha * gto2.cords[0] / p;
+    P[1] = gto1.alpha * gto1.cords[1] / p + gto2.alpha * gto2.cords[1] / p;
+    P[2] = gto1.alpha * gto1.cords[2] / p + gto2.alpha * gto2.cords[2] / p;
+    Q[0] = gto3.alpha * gto3.cords[0] / q + gto4.alpha * gto4.cords[0] / q;
+    Q[1] = gto3.alpha * gto3.cords[1] / q + gto4.alpha * gto4.cords[1] / q;
+    Q[2] = gto3.alpha * gto3.cords[2] / q + gto4.alpha * gto4.cords[2] / q;
     
     double val = 0.0;
     for (int t = 0; t <= gto1.nx + gto2.nx; t++) {
@@ -263,7 +214,7 @@ double compute_repulsion(STOPrimitive gto1, STOPrimitive gto2, STOPrimitive gto3
     return prefactor * val;
 }
 
-double compute_Vijkl(STOOrbital orbital1, STOOrbital orbital2, STOOrbital orbital3, STOOrbital orbital4) {
+double compute_Vijkl(STOGOrbital orbital1, STOGOrbital orbital2, STOGOrbital orbital3, STOGOrbital orbital4) {
     /*Calculate the Coulomb repulsion integral between four STO-nG orbitals*/
     double Vijkl = 0.0;
     
@@ -271,14 +222,14 @@ double compute_Vijkl(STOOrbital orbital1, STOOrbital orbital2, STOOrbital orbita
         for (int n = 0; n < orbital2.n; n++) {
             for (int u = 0; u < orbital3.n; u++) {
                 for (int v = 0; v < orbital4.n; v++) {
-                    STOPrimitive gto1 = orbital1.primitives[m];
-                    STOPrimitive gto2 = orbital2.primitives[n];
-                    STOPrimitive gto3 = orbital3.primitives[u];
-                    STOPrimitive gto4 = orbital4.primitives[v];
+                    STOGPrimitive gto1 = orbital1.primitives[m];
+                    STOGPrimitive gto2 = orbital2.primitives[n];
+                    STOGPrimitive gto3 = orbital3.primitives[u];
+                    STOGPrimitive gto4 = orbital4.primitives[v];
                     
                     double norms = gto1.N * gto2.N * gto3.N * gto4.N;
                     double coefs = gto1.cc * gto2.cc * gto3.cc * gto4.cc;
-                    Vijkl += norms * coefs * compute_repulsion(gto1, gto2, gto3, gto4);
+                    Vijkl += norms * coefs * Vabcd(gto1, gto2, gto3, gto4);
                 }
             }
         }

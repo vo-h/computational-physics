@@ -6,7 +6,7 @@ typedef struct  {
     char atom[3]; // Element symbol (e.g., "H", "C", "O")
     int Z; // Atomic number
     double coords[3]; // Atomic coordinates (x, y, z)
-    STOOrbital *orbitals; // Array of STO-nG orbitals for the atom
+    STOGOrbital *orbitals; // Array of STO-nG orbitals for the atom
     int num_orbitals; // Number of orbitals for the atom
     int num_gtos; // Number of GTO primitives per orbital
 } Atom;

@@ -14,7 +14,7 @@
 // Test overlap integral for identical 1s orbitals at same position
 int test_overlap_identical_orbitals() {
     // H atom 1s orbital (STO-3G)
-    STOOrbital orbital;
+    STOGOrbital orbital;
     orbital.n = 3; // STO-3G has 3 primitives
     
     double coords[3] = {0.0, 0.0, 0.0};
@@ -23,7 +23,7 @@ int test_overlap_identical_orbitals() {
     double exponents[] = {3.42525091, 0.62391373, 0.16885540};
     double coeffs[] = {0.15432897, 0.53532814, 0.44463454};
     
-    orbital.primitives = malloc(3 * sizeof(STOPrimitive));
+    orbital.primitives = malloc(3 * sizeof(STOGPrimitive));
     for (int i = 0; i < 3; i++) {
         orbital.primitives[i].cords[0] = coords[0];
         orbital.primitives[i].cords[1] = coords[1];
@@ -54,7 +54,7 @@ int test_overlap_identical_orbitals() {
 // Test kinetic energy integral
 int test_kinetic_1s_orbital() {
     // H atom 1s orbital (STO-3G)
-    STOOrbital orbital;
+    STOGOrbital orbital;
     orbital.n = 3;
     
     double coords[3] = {0.0, 0.0, 0.0};
@@ -62,7 +62,7 @@ int test_kinetic_1s_orbital() {
     double exponents[] = {3.42525091, 0.62391373, 0.16885540};
     double coeffs[] = {0.15432897, 0.53532814, 0.44463454};
     
-    orbital.primitives = malloc(3 * sizeof(STOPrimitive));
+    orbital.primitives = malloc(3 * sizeof(STOGPrimitive));
     for (int i = 0; i < 3; i++) {
         orbital.primitives[i].cords[0] = coords[0];
         orbital.primitives[i].cords[1] = coords[1];
@@ -93,7 +93,7 @@ int test_kinetic_1s_orbital() {
 // Test nuclear attraction integral
 int test_nuclear_attraction() {
     // H atom 1s orbital
-    STOOrbital orbital;
+    STOGOrbital orbital;
     orbital.n = 3;
     
     double coords[3] = {0.0, 0.0, 0.0};
@@ -102,7 +102,7 @@ int test_nuclear_attraction() {
     double exponents[] = {3.42525091, 0.62391373, 0.16885540};
     double coeffs[] = {0.15432897, 0.53532814, 0.44463454};
     
-    orbital.primitives = malloc(3 * sizeof(STOPrimitive));
+    orbital.primitives = malloc(3 * sizeof(STOGPrimitive));
     for (int i = 0; i < 3; i++) {
         orbital.primitives[i].cords[0] = coords[0];
         orbital.primitives[i].cords[1] = coords[1];
@@ -126,11 +126,11 @@ int test_nuclear_attraction() {
 
 // Test that overlap is symmetric
 int test_overlap_symmetry() {
-    STOOrbital orbital1, orbital2;
+    STOGOrbital orbital1, orbital2;
     
     // Setup first orbital
     orbital1.n = 1;
-    orbital1.primitives = malloc(sizeof(STOPrimitive));
+    orbital1.primitives = malloc(sizeof(STOGPrimitive));
     orbital1.primitives[0].cords[0] = 0.0;
     orbital1.primitives[0].cords[1] = 0.0;
     orbital1.primitives[0].cords[2] = 0.0;
@@ -143,7 +143,7 @@ int test_overlap_symmetry() {
     
     // Setup second orbital
     orbital2.n = 1;
-    orbital2.primitives = malloc(sizeof(STOPrimitive));
+    orbital2.primitives = malloc(sizeof(STOGPrimitive));
     orbital2.primitives[0].cords[0] = 1.0;
     orbital2.primitives[0].cords[1] = 0.0;
     orbital2.primitives[0].cords[2] = 0.0;
@@ -169,11 +169,11 @@ int test_overlap_symmetry() {
 
 // Test that kinetic energy is symmetric
 int test_kinetic_symmetry() {
-    STOOrbital orbital1, orbital2;
+    STOGOrbital orbital1, orbital2;
     
     // Setup first orbital
     orbital1.n = 1;
-    orbital1.primitives = malloc(sizeof(STOPrimitive));
+    orbital1.primitives = malloc(sizeof(STOGPrimitive));
     orbital1.primitives[0].cords[0] = 0.0;
     orbital1.primitives[0].cords[1] = 0.0;
     orbital1.primitives[0].cords[2] = 0.0;
@@ -186,7 +186,7 @@ int test_kinetic_symmetry() {
     
     // Setup second orbital
     orbital2.n = 1;
-    orbital2.primitives = malloc(sizeof(STOPrimitive));
+    orbital2.primitives = malloc(sizeof(STOGPrimitive));
     orbital2.primitives[0].cords[0] = 1.0;
     orbital2.primitives[0].cords[1] = 0.0;
     orbital2.primitives[0].cords[2] = 0.0;

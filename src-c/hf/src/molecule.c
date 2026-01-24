@@ -78,7 +78,7 @@ void free_molecule(Molecule *molecule) {
 
 gsl_matrix *compute_1e_integral(Molecule *molecule, int num_orbitals, char *type) {
     /*Compute the full overlap integral matrix for a set of STO-nG orbitals by iterating over all pairs of orbitals and calculating their overlap integrals using compute_Sij().*/
-    STOOrbital *orbitals = (STOOrbital *)malloc(num_orbitals * sizeof(STOOrbital));
+    STOGOrbital *orbitals = (STOGOrbital *)malloc(num_orbitals * sizeof(STOGOrbital));
     
     /* Get list of orbitals - fixed indexing to use running counter */
     int orbital_idx = 0;
@@ -124,7 +124,7 @@ tensor4d *compute_2e_integral(Molecule *molecule, int num_orbitals) {
     /*Compute the 2-electron integral tensor for a set of STO-nG orbitals*/
 
     /* Get list of orbitals - fixed indexing to use running counter */
-    STOOrbital *orbitals = (STOOrbital *)malloc(num_orbitals * sizeof(STOOrbital));
+    STOGOrbital *orbitals = (STOGOrbital *)malloc(num_orbitals * sizeof(STOGOrbital));
     int orbital_idx = 0;
     for (int i = 0; i < molecule->num_atoms; i++) {
         for (int j = 0; j < molecule->atoms[i].num_orbitals; j++) {
