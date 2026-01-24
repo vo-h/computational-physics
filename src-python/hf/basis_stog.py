@@ -2,10 +2,7 @@ import math
 from functools import cached_property
 from pydantic import BaseModel, ConfigDict, Field
 from functools import cached_property
-from typing import Callable, Literal
-# from source.hfp import GTO_LIB
 import numpy as np
-from scipy.special import factorial2
 from functools import partial
 from scipy.special import hyp1f1
 
@@ -79,11 +76,6 @@ class STOGOrbital(BaseModel):
         """Calculate the GTOs that make up the STO-nG orbital."""
         return [STOGPrimitive(coords=self.coords, alpha=self.alpha[i], nx=self.nx[i], ny=self.ny[i], nz=self.nz[i]) for i in range(len(self.cc))]
     
-    @cached_property
-    def N(self) -> float:
-        """The normalization constant for the STO-nG orbital."""
-        return [gto.N for gto in self.gtos]
-    
     def __call__(self, x: float, y: float, z: float) -> float:
         """Evaluate the STO-nG orbital at a given point (x, y, z)."""
         return sum(self.cc[i] * self.gtos[i](x, y, z) for i in range(len(self.cc))) # Use cartesian coordinates
@@ -130,15 +122,12 @@ class STOGIntegrator:
         def compute_Tab(orb1: STOGOrbital, orb2: STOGOrbital) -> float:
             """Calculate the kinetic energy integral T_ab between two GTO primitives. (eq. 121)"""
             term1 = compute_D(orb1.coords[0], orb2.coords[0], orb1.alpha, orb2.alpha, orb1.nx, orb2.nx, 2)
-            term2 = compute_D(orb1.coords[1], orb2.coords[1], orb1.alpha, orb2.alpha, orb1.ny, orb2.ny, 0)
-            term3 = compute_D(orb1.coords[2], orb2.coords[2], orb1.alpha, orb2.alpha, orb1.nz, orb2.nz, 0)
+            term2 = compute_D(orb1.coords[1], orb2.coords[1], orb1.alpha, orb2.alpha, orb1.ny, orb2.ny, 2)
+            term3 = compute_D(orb1.coords[2], orb2.coords[2], orb1.alpha, orb2.alpha, orb1.nz, orb2.nz, 2)
             term4 = compute_D(orb1.coords[0], orb2.coords[0], orb1.alpha, orb2.alpha, orb1.nx, orb2.nx, 0)
-            term5 = compute_D(orb1.coords[1], orb2.coords[1], orb1.alpha, orb2.alpha, orb1.ny, orb2.ny, 2)
+            term5 = compute_D(orb1.coords[1], orb2.coords[1], orb1.alpha, orb2.alpha, orb1.ny, orb2.ny, 0)
             term6 = compute_D(orb1.coords[2], orb2.coords[2], orb1.alpha, orb2.alpha, orb1.nz, orb2.nz, 0)
-            term7 = compute_D(orb1.coords[0], orb2.coords[0], orb1.alpha, orb2.alpha, orb1.nx, orb2.nx, 0)
-            term8 = compute_D(orb1.coords[1], orb2.coords[1], orb1.alpha, orb2.alpha, orb1.ny, orb2.ny, 0)
-            term9 = compute_D(orb1.coords[2], orb2.coords[2], orb1.alpha, orb2.alpha, orb1.nz, orb2.nz, 2)
-            return -0.5 * (term1*term2*term3 + term4*term5*term6 + term7*term8*term9)
+            return -0.5 * (term1*term5*term6 + term4*term2*term6 + term4*term5*term3)
 
         tij = 0.0
         for u, cc1 in enumerate(orb1.cc):
@@ -152,7 +141,8 @@ class STOGIntegrator:
         def compute_Vab(gto1: STOGPrimitive, gto2: STOGPrimitive, R: tuple[float, float, float]) -> float:
             """Calculate the nuclear attraction integral between two STO-nG orbitals for a single nucleus. (eq. 199-204)"""
             p = gto1.alpha + gto2.alpha
-            P = [self.compute_Pi(gto1, gto2, component) for component in ['x', 'y', 'z']] # Gaussian composite center
+            P = (gto1.alpha * np.array(gto1.coords) + gto2.alpha * np.array(gto2.coords)) / p
+
             val = 0.0
             for t in range(gto1.nx+gto2.nx+1):
                 for u in range(gto1.ny+gto2.ny+1):
@@ -177,8 +167,8 @@ class STOGIntegrator:
             p = gto1.alpha + gto2.alpha
             q = gto3.alpha + gto4.alpha
             alpha = p * q / (p + q)
-            P = [self.compute_Pi(gto1, gto2, component) for component in ['x', 'y', 'z']]
-            Q = [self.compute_Pi(gto3, gto4, component) for component in ['x', 'y', 'z']]
+            P = (gto1.alpha * np.array(gto1.coords) + gto2.alpha * np.array(gto2.coords)) / p
+            Q = (gto3.alpha * np.array(gto3.coords) + gto4.alpha * np.array(gto4.coords)) / q
 
             val = 0.0
             for t in range(gto1.nx+gto2.nx+1):
@@ -267,17 +257,6 @@ class STOGIntegrator:
             val += (t-1)*self.compute_R(t-2,u,v,n+1,p,P,C)
             val += (P[0]-C[0])*self.compute_R(t-1,u,v,n+1,p,P,C)
         return val
-    
-    def compute_Pi(self, gto1: STOGPrimitive, gto2: STOGPrimitive, component: Literal['x', 'y', 'z'] = 'x') -> float:
-        """Calculate the weighted center and combined exponent for the integral in a given component."""
-        alpha_sum = gto1.alpha + gto2.alpha
-        if component == 'x':
-            return (gto1.alpha * gto1.coords[0] + gto2.alpha * gto2.coords[0]) / alpha_sum
-        elif component == 'y':
-            return (gto1.alpha * gto1.coords[1] + gto2.alpha * gto2.coords[1]) / alpha_sum
-        else:  # component == 'z'
-            return (gto1.alpha * gto1.coords[2] + gto2.alpha * gto2.coords[2]) / alpha_sum
-
 
     
 
