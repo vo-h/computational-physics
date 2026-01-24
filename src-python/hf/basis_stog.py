@@ -114,7 +114,7 @@ class STOGIntegrator:
             """ Returns the Dawson function D_n(T) """
             p = alpha + beta
             if t == 0: # eq. 113 
-                return self.compute_E(A, B, alpha, beta, ai, bi, 0) * np.sqrt(np.pi/(p))
+                return self.compute_E(A, B, alpha, beta, ai, bi, 0) * np.sqrt(np.pi/p)
             term1 = bi * compute_D(A, B, alpha, beta, ai, bi-1, t-1)
             term2 = 2*beta*compute_D(A, B, alpha, beta, ai, bi+1, t-1)
             return term1 - term2 # eq. 114
@@ -166,7 +166,6 @@ class STOGIntegrator:
             """Calculate the electron-electron repulsion integral between two STO-nG orbitals."""
             p = gto1.alpha + gto2.alpha
             q = gto3.alpha + gto4.alpha
-            alpha = p * q / (p + q)
             P = (gto1.alpha * np.array(gto1.coords) + gto2.alpha * np.array(gto2.coords)) / p
             Q = (gto3.alpha * np.array(gto3.coords) + gto4.alpha * np.array(gto4.coords)) / q
 
@@ -184,7 +183,7 @@ class STOGIntegrator:
                                     term5 = self.compute_E(gto3.coords[1], gto4.coords[1], gto3.alpha, gto4.alpha, gto3.ny, gto4.ny, nu)
                                     term6 = self.compute_E(gto3.coords[2], gto4.coords[2], gto3.alpha, gto4.alpha, gto3.nz, gto4.nz, phi)
                                     term7 = np.power(-1, tau+nu+phi)
-                                    term8 = self.compute_R(t+tau, u+nu, v+phi, 0, alpha, P, Q)
+                                    term8 = self.compute_R(t+tau, u+nu, v+phi, 0, p * q / (p + q), P, Q)
                                     val += term1*term2*term3*term4*term5*term6*term7*term8
             prefactor = 2 * math.pi**(5/2) / (p * q * math.sqrt(p + q))
             return prefactor * val

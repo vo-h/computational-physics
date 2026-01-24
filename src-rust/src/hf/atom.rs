@@ -1,10 +1,13 @@
 pub mod atom {
+    use crate::hf::basis_stog::stog_orbital::STOGOrbital;
+
     struct Atom {
         symbol: String,
         Z: u8,
         coords: (f64, f64, f64),
         coords_units: String,
         basis: String,
+        orbitals: Vec<STOGOrbital>,
     }
 
     impl Atom {
@@ -15,6 +18,7 @@ pub mod atom {
                 coords,
                 coords_units,
                 basis,
+                orbitals: Vec::new(),
             }
         }
     } 
