@@ -227,6 +227,10 @@ impl Molecule {
         let S12 = self.compute_S12();
 
         for i in 0..max_iter {
+            if i == 0 {
+                println!("Iteration 0: Energy = {:.12} Hartree", E);
+                continue;
+            }
             
             // Compute Fock matrix
             let F = self.compute_F(&D, &Vee);
@@ -235,15 +239,14 @@ impl Molecule {
             let C = &S12 * &sorted_eig.vectors;
             let C_occ = C.columns(0, occ);
             D = &C_occ * &C_occ.transpose();
-            let sum = &D + &H;
-            E_new = D.component_mul(&sum).sum();
+            E_new = D.component_mul(&(&H+&F)).sum();
 
             if (E - E_new).abs() < tol {
-                println!("SCF converged in {} iterations.", i + 1);
-                println!("Final electronic energy E: {:.6}", E_new);
+                println!("SCF converged in {} iterations.", i);
+                println!("Final electronic energy E: {:.6} Hartree", E_new);
                 return;
             }
-            println!("Iteration {}: E = {:.6}", i + 1, E_new);
+            println!("Iteration {}: Energy = {:.6} Hartree, ΔE = {:.6e} Hartree", i, E_new, E_new - E);
             E = E_new;
         }
     }
