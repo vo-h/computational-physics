@@ -14,7 +14,7 @@ pub struct Atom {
 
 impl Atom {
 
-    pub fn new(symbol: &str, coords: (f64, f64, f64), Z: u8, basis: String) -> Result<(Self), Error>  {
+    pub fn new(symbol: &str, coords: (f64, f64, f64), Z: u8, basis: String) -> Result<Self, Error>  {
         let url = format!("https://www.basissetexchange.org/basis/{}/format/gaussian94/?version=1&elements={}&uncontract_spdf=true", basis, symbol);
         let res = get(url)?.text()?;
         let sections = res.split("\n\n").collect::<Vec<&str>>();

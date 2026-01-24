@@ -99,7 +99,7 @@ impl Molecule {
             for j in i..n {
                 let mut val = 0.0;
                 for atom in &self.atoms {
-                    val += compute_VijR(&self.orbitals[i], &self.orbitals[j], atom.coords) * (atom.Z as f64);
+                    val += compute_VijR(&self.orbitals[i], &self.orbitals[j], atom.coords) * (-(atom.Z as f64));
                 }
                 Vne[(i, j)] = val;
                 Vne[(j, i)] = Vne[(i, j)];

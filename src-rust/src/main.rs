@@ -2,12 +2,7 @@
 #[allow(dead_code)]
 
 mod hf;
-use reqwest::blocking::get;
-use reqwest::Error;
 use clap::Parser;
-use crate::hf::atom::Atom;
-use crate::hf::basis_stog::stog_orbital::STOGOrbital;
-use crate::hf::basis_stog::stog_primitive::STOGPrimitive;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -37,11 +32,28 @@ fn main() -> () {
         let V = molecule.compute_Vne();
         println!("Nuclear attraction matrix Vne:\n {a:.5}", a=V);
         return;
-    } else if args.method == "kinetic" {
-        let T = molecule.compute_T();
-        println!("Kinetic energy matrix T:\n {a:.5}", a=T);
-    } else {
-        println!("Unknown method: {}", args.method);
-        return;
+    } else if args.method == "2e-mat" {
+        let Vee = molecule.compute_Vee();
+        for i in 0..Vee.len() {
+            for j in 0..Vee.len() {
+                // Print slice Vee[i][j][:][:]
+                println!("Vee[{}][{}]:", i, j);
+                for k in 0..Vee.len() {
+                    for l in 0..Vee.len() {
+                        print!("{:.5} ", Vee[i][j][k][l]);
+                    }
+                    println!();
+                }
+            }
+        }
+    } else if args.method == "guesses" {
+        let F0 = molecule.compute_F0();
+        println!("Initial Fock matrix F0:\n {a:.5}", a=F0);
+        let C0 = molecule.compute_C0();
+        println!("Initial coefficient matrix C0:\n {a:.5}", a=C0);
+        let D0 = molecule.compute_D0();
+        println!("Initial density matrix D0:\n {a:.5}", a=D0);
+        let E0 = molecule.compute_E0();
+        println!("Initial electronic energy E0: {:.5}", E0);
     }
 }

@@ -300,7 +300,7 @@ pub mod stog_integrator {
             return 0.0;
         }
         if t == 0 && u == 0 && v == 0{
-            val += (-2.0 * p).powi(n + 1) * boys(n,p * RPC * RPC);
+            val += (-2.0 * p).powi(n) * boys(n,p * RPC * RPC);
         }
         else if t == 0 && u == 0 {
             val += (v-1) as f64 * compute_R(0, 0, v-2, n+1, p, P, C);
