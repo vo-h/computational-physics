@@ -55,13 +55,13 @@ $$
 
 ### Constrained Optimization To Obtain Ground State Energy $E_{HF}$
 
-Ignoring the trivial nuclear repulsion term $V_{NN}$ for now, we can compute the Hartree-Fock electronic energy as:
+Ignoring the trivial nuclear repulsion term $V_{NN}$ for now, we can compute the Hartree-Fock ground state electronic energy as:
 
 $$
 E_{HF} 
 = \langle \Psi | \hat{H} | \Psi \rangle 
 = \langle \Psi | -\frac{1}{2}\sum_{i}\nabla_i^2 + \sum_{i,A} \frac{Z_A}{r_{iA}} + \sum_{i\lt j} \frac{1}{r_{ij}} | \Psi \rangle 
-= \sum_{i=1}^{N} \langle \chi_i | \hat{h}(i) | \chi_i \rangle + \sum_{i\lt j}^{N} \left[ \langle \chi_i \chi_j | \hat{J} | \chi_i \chi_j \rangle - \langle \chi_i \chi_j | \hat{K} | \chi_i \chi_j \rangle \right]
+= \sum_{i=1}^{N} \langle \chi_i | \hat{h}(i) | \chi_i \rangle + \sum_{i\lt j}^{N} \left[ \langle \chi_i| \hat{J}_j | \chi_i \rangle - \langle \chi_i| \hat{K}_j | \chi_i \rangle \right]
 $$
 
 where 
@@ -69,13 +69,13 @@ where
 $$ \hat{h}(i) = -\frac{1}{2}\nabla_i^2 + \sum_{A} \frac{Z_A}{r_{iA}} $$
 
 $$
-\langle \chi_i(\vec{x}_1) \chi_j (\vec{x}_2) | \hat{J} | \chi_i (\vec{x}_1) \chi_j (\vec{x}_2) \rangle 
-= \langle \chi_i (\vec{x}_1) \chi_j (\vec{x}_2) | \frac{1}{r_{12}} | \chi_i (\vec{x}_1) \chi_j (\vec{x}_2) \rangle 
+\hat{J}_j | \chi_i (\vec{x}_1) \rangle 
+= \left[ \int \chi_j^* (\vec{x}_2) \frac{1}{r_{12}} \chi_j (\vec{x}_2) \right] \chi_i (\vec{x}_1) d\vec{x}_2
 $$
 
 $$
-\langle \chi_i(\vec{x}_1) \chi_j (\vec{x}_2) | \hat{K} | \chi_i (\vec{x}_1) \chi_j (\vec{x}_2) \rangle 
-= \langle \chi_i (\vec{x}_1) \chi_j (\vec{x}_2) | \frac{1}{r_{12}} | \chi_j (\vec{x}_1) \chi_i (\vec{x}_2) \rangle 
+\hat{K}_j | \chi_i (\vec{x}_1) \rangle 
+= \left[ \int \chi_j^* (\vec{x}_2) \frac{1}{r_{12}} \chi_i (\vec{x}_2) \right] \chi_j (\vec{x}_1) d\vec{x}_2
 $$
 
 In order to find the ground state of the system, we need to minimize $E_{HF}$ with respect to the molecular orbitals $\chi_i$, subject to the constraint that the orbitals remain orthonormal $\langle \chi_i | \chi_j \rangle = \delta_{ij}$, which is what Lagrange multipliers are for (spoiler alert—the multipliers will turn out to be the orbital energies $\epsilon_i$):
@@ -100,10 +100,10 @@ $$
 = (U^{\dagger} \epsilon U)_{ij} = \epsilon_{ij}'
 $$
 
-By choosing U such that it diagonalizes the matrix of Lagrange multipliers $\epsilon$, we can rewrite the Hartree-Fock equations in their canonical form:
+By choosing U such that it diagonalizes the matrix of Lagrange multipliers $\epsilon$ (which is always possible because $\mathbf{\epsilon}$ is a Hermitian matrix), we can rewrite the Hartree-Fock equations in their canonical form (where we have dropped the primes because it can be shown that a unitary transformation will leave the Fock operator invariant, as well as any expectation values):
 
 $$
-\hat{F} |\chi_i' \rangle = \epsilon_i' |\chi_i' \rangle
+\hat{F} |\chi_i \rangle = \epsilon_i |\chi_i \rangle
 $$
 
 ### Basis Set Expansion and Roothaan-Hall Equations
