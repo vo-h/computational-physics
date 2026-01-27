@@ -139,36 +139,146 @@ $$
 
 Given these ingredients, we can roughly see how the Hartree-Fock method can be implemented: guess $\mathbf{F}$, transform it to $\mathbf{F}'$, diagonalize to get $\mathbf{c}'$ and $\mathbf{\epsilon}$, back-transform to get $\mathbf{c}$, use $\mathbf{c}$ to compute a new $\mathbf{F}$ somehow, and repeat until convergence.
 
+
+### The Density Matrix
+
+Starting from the Hartree-Fock energy for a closed-shell system where each spatial orbital contains 2 electrons:
+
+$$
+E_{\text{elec}} = \sum_{i=1}^{N/2} \langle \chi_i | 2\hat{h} | \chi_i \rangle + \sum_{i=1}^{N/2} \sum_{j=1}^{N/2} \left[ 2\langle \chi_i \chi_i | \chi_j \chi_j \rangle - \langle \chi_i \chi_j | \chi_j \chi_i \rangle \right]
+$$
+
+**Expanding using LCAO:** Substitute the LCAO expansion $|\chi_i \rangle = \sum_{\nu} c_{\nu i} |\phi_\nu \rangle$ into the one-electron term:
+
+$$
+\langle \chi_i | \hat{h} | \chi_i \rangle = \left\langle \sum_{\mu} c_{\mu i} \phi_\mu \middle| \hat{h} \middle| \sum_{\nu} c_{\nu i} \phi_\nu \right\rangle = \sum_{\mu \nu} c_{\mu i}^* c_{\nu i} \langle \phi_\mu | \hat{h} | \phi_\nu \rangle = \sum_{\mu \nu} c_{\mu i} c_{\nu i} H^{\text{core}}_{\mu \nu}
+$$
+
+(assuming real coefficients). Summing over occupied orbitals:
+
+$$
+\sum_{i=1}^{N/2} \langle \chi_i | 2\hat{h} | \chi_i \rangle = 2\sum_{i=1}^{N/2} \sum_{\mu \nu} c_{\mu i} c_{\nu i} H^{\text{core}}_{\mu \nu} = 2\sum_{\mu \nu} H^{\text{core}}_{\mu \nu} \sum_{i=1}^{N/2} c_{\mu i} c_{\nu i} = 2\sum_{\mu \nu} H^{\text{core}}_{\mu \nu} D_{\mu \nu}
+$$
+
+where we identify the **density matrix** $D_{\mu \nu} = \sum_{i=1}^{N/2} c_{\mu i} c_{\nu i}$.
+
+**For the two-electron terms:** Similarly, expand the two-electron integrals:
+
+$$
+\langle \chi_i \chi_i | \chi_j \chi_j \rangle = \sum_{\mu \nu \lambda \sigma} c_{\mu i} c_{\nu i} c_{\lambda j} c_{\sigma j} (\mu \nu | \lambda \sigma)
+$$
+
+Summing over occupied orbitals and using the density matrix:
+
+$$
+\sum_{i,j=1}^{N/2} \langle \chi_i \chi_i | \chi_j \chi_j \rangle = \sum_{\mu \nu \lambda \sigma} (\mu \nu | \lambda \sigma) \sum_{i=1}^{N/2} c_{\mu i} c_{\nu i} \sum_{j=1}^{N/2} c_{\lambda j} c_{\sigma j} = \sum_{\mu \nu \lambda \sigma} (\mu \nu | \lambda \sigma) D_{\mu \nu} D_{\lambda \sigma}
+$$
+
+The exchange term follows analogously. Combining all terms with proper factors:
+
+$$
+E_{\text{elec}} = \sum_{\mu \nu} D_{\mu \nu} H^{\text{core}}_{\mu \nu} + \frac{1}{2} \sum_{\mu \nu \lambda \sigma} D_{\mu \nu} D_{\lambda \sigma} \left[ 2(\mu \nu | \lambda \sigma) - (\mu \lambda | \nu \sigma) \right]
+$$
+
+Recognizing that the Fock matrix is $F_{\mu \nu} = H^{\text{core}}_{\mu \nu} + \sum_{\lambda \sigma} D_{\lambda \sigma} \left[ 2(\mu \nu | \lambda \sigma) - (\mu \lambda | \nu \sigma) \right]$, we can simplify:
+
+$$
+E_{\text{elec}} = \sum_{\mu \nu} D_{\mu \nu} \left[ H^{\text{core}}_{\mu \nu} + F_{\mu \nu} \right]
+$$
+
+This shows explicitly how the LCAO expansion coefficients $c_{\mu i}$ lead to the density matrix $D_{\mu \nu}$, which in turn enables a compact expression for the electronic energy in terms of basis function integrals
+
+
 ### The Self-Consistent Field (SCF) Procedure: Closed Shell Variant
 
 The following procedure is specific to a closed-shell system, where each spatial orbital is doubly occupied (i.e., two electrons with opposite spins occupy the same spatial orbital):
 
-1. Compute all the 1-e and 2-e integral matrices:
+**Step 1: Compute Basis Integrals**
 
-$$T_{\mu \nu} = \langle \phi_\mu | -\frac{1}{2}\nabla^2 | \phi_\nu \rangle\\
+Calculate all one-electron and two-electron integrals over the atomic orbital basis $\lbrace\phi_\mu\rbrace$:
+
+$$
+T_{\mu \nu} = \langle \phi_\mu | -\frac{1}{2}\nabla^2 | \phi_\nu \rangle \\
 V_{\text{nuc}, \mu \nu} = \langle \phi_\mu | \sum_A \frac{Z_A}{r_{iA}} | \phi_\nu \rangle \\
 S_{\mu \nu} = \langle \phi_\mu | \phi_\nu \rangle \\
 (\mu \nu | \lambda \sigma) = \iint \phi_\mu^*(\vec{r}_1) \phi_\nu(\vec{r}_1) \frac{1}{r_{12}} \phi_\lambda^*(\vec{r}_2) \phi_\sigma(\vec{r}_2) d\vec{r}_1 d\vec{r}_2
-
-$$.
-
-2. Compute $\mathbf{S}^{-1/2} = \mathbf{L} \mathbf{\Lambda}^{-1/2} \mathbf{L}^T$ by first diagonalizing $\mathbf{S}$ to obtain its eigenvalues $\mathbf{\Lambda}$ and eigenvectors.
-3. Make an initial guess of the Fock matrix: $
-\mathbf{F}_0 = \mathbf{H}^{\text{core}} = \mathbf{T} + \mathbf{V}_{\text{nuc}}$
-4. Transform the Fock matrix: $\mathbf{F}'_0 = \mathbf{S}^{-1/2} \mathbf{F}_0 \mathbf{S}^{-1/2}$
-5. Diagonalize the transformed Fock matrix to obtain $\mathbf{c}'_0$ and $\mathbf{\epsilon}_0$.
-6. Back-transform the coefficient matrix: $\mathbf{c}_0 = \mathbf{S}^{-1/2} \mathbf{c}'_0$.
-7. Construct the density matrix: $D_{\mu \nu, 0} = \sum_{i=1}^{N/2} c_{\mu i, 0} c_{\nu i, 0}$.
-8. Compute the electronic energy 
-
-$$
-E_{\text{elec}} = \sum_{i=1}^{N/2} \langle \chi_i | 2\hat{h} + \sum_{j}^{N/2} \left( 2\hat{J}_j - \hat{K}_j \right) | \chi_i \rangle \\
-
-= \sum_{i=1}^{N/2} \langle \sum_{\nu} c^*_{\nu i} \phi_\nu | 2\hat{h} + \sum_{j}^{N/2} \left( 2\hat{J}_j - \hat{K}_j \right) | \sum_{\nu} c_{\nu i} \phi_\nu \rangle \\
-
-= \sum_{\mu \nu} D_{\mu \nu} \left[ 2 H^{\text{core}}_{\mu \nu} + F_{\mu \nu} \right]
 $$
 
+Form the core Hamiltonian matrix: $\mathbf{H}^{\text{core}} = \mathbf{T} + \mathbf{V}_{\text{nuc}}$.
+
+**Step 2: Compute Orthogonalization Matrix**
+
+Diagonalize the overlap matrix $\mathbf{S}$ to obtain eigenvalues $\mathbf{\Lambda}$ and eigenvectors $\mathbf{L}$. Then compute:
+
+$$
+\mathbf{S}^{-1/2} = \mathbf{L} \mathbf{\Lambda}^{-1/2} \mathbf{L}^T
+$$
+
+**Step 3: Initial Guess for Fock Matrix**
+
+For the first iteration, use the core Hamiltonian as the initial guess:
+
+$$
+\mathbf{F}^{(0)} = \mathbf{H}^{\text{core}}
+$$
+
+**Step 4: Transform to Orthogonal Basis**
+
+Apply the orthogonalization transformation:
+
+$$
+\mathbf{F}'^{(n)} = \mathbf{S}^{-1/2} \mathbf{F}^{(n)} \mathbf{S}^{-1/2}
+$$
+
+**Step 5: Solve Eigenvalue Problem**
+
+Diagonalize $\mathbf{F}'^{(n)}$ to obtain the coefficient matrix $\mathbf{c}'^{(n)}$ and orbital energies $\mathbf{\epsilon}^{(n)}$:
+
+$$
+\mathbf{F}'^{(n)} \mathbf{c}'^{(n)} = \mathbf{c}'^{(n)} \mathbf{\epsilon}^{(n)}
+$$
+
+**Step 6: Back-Transform Coefficients**
+
+Transform coefficients back to the original non-orthogonal basis:
+
+$$
+\mathbf{c}^{(n)} = \mathbf{S}^{-1/2} \mathbf{c}'^{(n)}
+$$
+
+**Step 7: Build Density Matrix**
+
+Construct the density matrix from the coefficient matrix, summing over the occupied orbitals (N/2 spatial orbitals for a closed-shell system):
+
+$$
+D_{\mu \nu}^{(n)} = \sum_{i=1}^{N/2} c_{\mu i}^{(n)} c_{\nu i}^{(n)}
+$$
+
+**Step 8: Build New Fock Matrix**
+
+Using the density matrix, construct the next Fock matrix:
+
+$$
+F_{\mu \nu}^{(n+1)} = H^{\text{core}}_{\mu \nu} + \sum_{\lambda \sigma} D_{\lambda \sigma}^{(n)} \left[ 2(\mu \nu | \lambda \sigma) - (\mu \lambda | \nu \sigma) \right]
+$$
+
+**Step 9: Check Convergence**
+
+Calculate the electronic energy:
+
+$$
+E_{\text{elec}}^{(n)} = \sum_{\mu \nu} D_{\mu \nu}^{(n)} \left[ H^{\text{core}}_{\mu \nu} + F_{\mu \nu}^{(n)} \right]
+$$
+
+If $|E_{\text{elec}}^{(n)} - E_{\text{elec}}^{(n-1)}| < \text{threshold}$, convergence is achieved. Otherwise, return to Step 4 with the new Fock matrix $\mathbf{F}^{(n+1)}$.
+
+**Step 10: Compute Total Energy**
+
+Add the nuclear repulsion energy:
+
+$$
+E_{\text{total}} = E_{\text{elec}} + V_{NN} = E_{\text{elec}} + \sum_{A < B} \frac{Z_A Z_B}{R_{AB}}
+$$
 
 ## Computational Implementation
 In practice, we once again expand the atomic basis functions $\lbrace\phi_\mu\rbrace$ with another basis set for computational efficiency. 
