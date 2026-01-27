@@ -1,10 +1,9 @@
-# Hartree-Fock Theory for Closed-Shell Systems
+# Hartree-Fock Theory
 
 *   [Theory](#Theory)
     *   [The Slater Determinant $`\Psi`$ ](#the-slater-determinant-psi)
     *   [The Born-Oppenheimer Approximation of $`\hat{H}`$ ](#the-born-oppenheimer-approximation-of-hath)
     *   [Constrained Optimization To Obtain Ground State Energy: $`E_{HF}`$ ](#constrained-optimization-to-obtain-ground-state-energy-e_hf)
-    *   [Unitary Transformation to Canonical Form](#Unitary-Transformation-to-Canonical-Form)
     *   [Basis Set Expansion and Roothaan-Hall Equations](#Basis-Set-Expansion-and-Roothaan-Hall-Equations)
 *   [Computational Implementation](#Computational-Implementation)
     *   [Contracted Gaussian Basis Sets: STO-nG](#Contracted-Gaussian-Basis-Sets-STO-nG)
@@ -55,7 +54,7 @@ $$
 
 ### Constrained Optimization To Obtain Ground State Energy $E_{HF}$
 
-Ignoring the trivial nuclear repulsion term $V_{NN}$ for now, we can compute the Hartree-Fock ground state electronic energy as:
+Ignoring the trivial nuclear repulsion term $V_{NN}$ for now, we can the Hartree-Fock electronic energy expression is:
 
 $$
 E_{HF} 
@@ -78,7 +77,7 @@ $$
 = \left[ \int \chi_j^* (\vec{x}_2) \frac{1}{r_{12}} \chi_i (\vec{x}_2) \right] \chi_j (\vec{x}_1) d\vec{x}_2
 $$
 
-In order to find the ground state of the system, we need to minimize $E_{HF}$ with respect to the molecular orbitals $\chi_i$, subject to the constraint that the orbitals remain orthonormal $\langle \chi_i | \chi_j \rangle = \delta_{ij}$, which is what Lagrange multipliers are for (spoiler alert—the multipliers will turn out to be the orbital energies $\epsilon_i$):
+In order to find the ground state of the system, we need to minimize $E_{HF}$ with respect to the molecular orbitals $\chi_i$, subject to orthonormality $\langle \chi_i | \chi_j \rangle = \delta_{ij}$, which is what Lagrange multipliers are for (spoiler alert—the multipliers will turn out to be the orbital energies $\epsilon_i$):
 
 $$
 \mathcal{L}[\lbrace\chi_i\rbrace] = E_{HF}[\lbrace\chi_i\rbrace]  - \sum_{i,j} \epsilon_{ij} \left( \langle \chi_i | \chi_j \rangle - \delta_{ij} \right)
@@ -90,24 +89,15 @@ $$
 \left[ \hat{h} + \sum_{j}^{N} \left( \hat{J}_j - \hat{K}_j \right) \right] |\chi_i \rangle = \hat{F} |\chi_i \rangle  =\sum_j^N \epsilon_{ij} |\chi_i \rangle
 $$
 
-### Unitary Transformation to Canonical Form
-To get to the canonical form, we can define a unitary transformation matrix U that transforms the molecular orbitals $\chi_i$ into a new set of orbitals $\chi_j'$ while preserving their orthonormality:
-
-$$
-|\chi_j' \rangle = \sum_j U_{lj} |\chi_j \rangle \rightarrow 
-\langle  \chi_j'| \hat{F} | \chi_i' \rangle 
-= \sum_k^N \sum_i^N U_{ki}^* \epsilon_{kl} U_{lj} 
-= (U^{\dagger} \epsilon U)_{ij} = \epsilon_{ij}'
-$$
-
-By choosing U such that it diagonalizes the matrix of Lagrange multipliers $\epsilon$ (which is always possible because $\mathbf{\epsilon}$ is a Hermitian matrix), we can rewrite the Hartree-Fock equations in their canonical form (where we have dropped the primes because it can be shown that a unitary transformation will leave the Fock operator invariant, as well as any expectation values):
+It can be shown that we can always find a unitary matrix that transforms the above equations into an eigenvalue problem by forming new orbitals from a linear combination of the original orbitals, but I'm not showing that here. The end result is the canonical Hartree-Fock equations:
 
 $$
 \hat{F} |\chi_i \rangle = \epsilon_i |\chi_i \rangle
 $$
 
+
 ### Basis Set Expansion and Roothaan-Hall Equations
-In practice, we express the molecular orbitals as linear combinations of a finite basis set of known atomic basis functions $\lbrace\phi_\nu\rbrace$:
+In practice, we express the unknown molecular orbitals as linear combinations of known atomic orbitals $\lbrace\phi_\nu\rbrace$:
 
 $$
 |\chi_i \rangle = \sum_{\nu} c_{\nu i} |\phi_\nu \rangle 
@@ -121,19 +111,64 @@ $$
 \rightarrow \mathbf{F} \mathbf{c} = \mathbf{S} \mathbf{c} \mathbf{\epsilon}
 $$
 
-where $\mathbf{F}$ is the Fock matrix with elements $F_{\mu \nu} = \langle \phi_\mu | \hat{F} | \phi_\nu \rangle$, $\mathbf{S}$ is the overlap matrix with elements $S_{\mu \nu} = \langle \phi_\mu | \phi_\nu \rangle$, $\mathbf{c}$ is the coefficient matrix with elements $c_{\nu i}$, and $\mathbf{\epsilon}$ is the diagonal matrix of orbital energies $\epsilon_i$. Note that since we're working with atomic orbitals, which are generally not orthogonal (to be orthogonal, the electrons in two orbitals need to not interact with one another and physically speaking, you kind of need interaction to form bonds), the overlap matrix $\mathbf{S}$ is not the identity matrix.
+where $\mathbf{F}$ is the Fock matrix with elements $F_{\mu \nu} = \langle \phi_\mu | \hat{F} | \phi_\nu \rangle$, $\mathbf{S}$ is the overlap matrix with elements $S_{\mu \nu} = \langle \phi_\mu | \phi_\nu \rangle$, $\mathbf{c}$ is the coefficient matrix with elements $c_{\nu i}$, and $\mathbf{\epsilon}$ is the diagonal matrix of orbital energies $\epsilon_i$. Note that since we're working with atomic orbitals, which are generally not orthogonal (to be orthogonal, the electrons in two orbitals need to not interact with one another and physically speaking, you kind of need interaction to form bonds), $\mathbf{S} \neq \delta_{ij}$ .
 
-To once again obtain an eigenvalue problem, we can apply a transformation using the symmetric orthogonalization matrix $\mathbf{S}^{-1/2}$ (obtained by diagonalizing $\mathbf{S}$ and taking the inverse square root of its eigenvalues):
+To once again get an eigenvalue problem, we can apply a transformation using the symmetric orthogonalization matrix $\mathbf{S}^{-1/2}$ such that:
 
 $$
 \mathbf{F}' = \mathbf{S}^{-1/2} \mathbf{F} \mathbf{S}^{-1/2} \text{ ; } \mathbf{c}' = (\mathbf{S}^{-1/2})^{-1} \mathbf{c} \text{ ; } \mathbf{c} = \mathbf{S}^{-1/2} \mathbf{c}'
 $$
 
+where ($\mathbf{\Lambda}^{-1/2}$ is the diagonal matrix of the inverse square roots of the eigenvalues of $\mathbf{S}$ and $\mathbf{L}$ is the matrix of eigenvectors of $\mathbf{S}$):
+
+$$
+\mathbf{S}^{-1/2} = \mathbf{L} \mathbf{\Lambda}^{-1/2} \mathbf{L}^T
+$$
+
 Applying these transformations to the Roothaan-Hall equations, we get:
 
 $$
+\mathbf{F} \mathbf{c} = \mathbf{S} \mathbf{c} \mathbf{\epsilon} \\
+
+\mathbf{F} (\mathbf{S}^{-1/2} \mathbf{c}') = \mathbf{S} (\mathbf{S}^{-1/2} \mathbf{c}') \mathbf{\epsilon} \\
+
+(\mathbf{S}^{-1/2} \mathbf{F} \mathbf{S}^{-1/2}) \mathbf{c}' = (\mathbf{S}^{-1/2} \mathbf{S} \mathbf{S}^{-1/2}) \mathbf{c}' \mathbf{\epsilon} \\
+\mathbf{F}' \mathbf{c}' = \mathbf{I} \mathbf{c}' \mathbf{\epsilon} \\
 \mathbf{F}' \mathbf{c}' = \mathbf{c}' \mathbf{\epsilon}
 $$
+
+Given these ingredients, we can roughly see how the Hartree-Fock method can be implemented: guess $\mathbf{F}$, transform it to $\mathbf{F}'$, diagonalize to get $\mathbf{c}'$ and $\mathbf{\epsilon}$, back-transform to get $\mathbf{c}$, use $\mathbf{c}$ to compute a new $\mathbf{F}$ somehow, and repeat until convergence.
+
+### The Self-Consistent Field (SCF) Procedure: Closed Shell Variant
+
+The following procedure is specific to a closed-shell system, where each spatial orbital is doubly occupied (i.e., two electrons with opposite spins occupy the same spatial orbital):
+
+1. Compute all the 1-e and 2-e integral matrices:
+
+$$T_{\mu \nu} = \langle \phi_\mu | -\frac{1}{2}\nabla^2 | \phi_\nu \rangle\\
+V_{\text{nuc}, \mu \nu} = \langle \phi_\mu | \sum_A \frac{Z_A}{r_{iA}} | \phi_\nu \rangle \\
+S_{\mu \nu} = \langle \phi_\mu | \phi_\nu \rangle \\
+(\mu \nu | \lambda \sigma) = \iint \phi_\mu^*(\vec{r}_1) \phi_\nu(\vec{r}_1) \frac{1}{r_{12}} \phi_\lambda^*(\vec{r}_2) \phi_\sigma(\vec{r}_2) d\vec{r}_1 d\vec{r}_2
+
+$$.
+
+2. Compute $\mathbf{S}^{-1/2} = \mathbf{L} \mathbf{\Lambda}^{-1/2} \mathbf{L}^T$ by first diagonalizing $\mathbf{S}$ to obtain its eigenvalues $\mathbf{\Lambda}$ and eigenvectors.
+3. Make an initial guess of the Fock matrix: $
+\mathbf{F}_0 = \mathbf{H}^{\text{core}} = \mathbf{T} + \mathbf{V}_{\text{nuc}}$
+4. Transform the Fock matrix: $\mathbf{F}'_0 = \mathbf{S}^{-1/2} \mathbf{F}_0 \mathbf{S}^{-1/2}$
+5. Diagonalize the transformed Fock matrix to obtain $\mathbf{c}'_0$ and $\mathbf{\epsilon}_0$.
+6. Back-transform the coefficient matrix: $\mathbf{c}_0 = \mathbf{S}^{-1/2} \mathbf{c}'_0$.
+7. Construct the density matrix: $D_{\mu \nu, 0} = \sum_{i=1}^{N/2} c_{\mu i, 0} c_{\nu i, 0}$.
+8. Compute the electronic energy 
+
+$$
+E_{\text{elec}} = \sum_{i=1}^{N/2} \langle \chi_i | 2\hat{h} + \sum_{j}^{N/2} \left( 2\hat{J}_j - \hat{K}_j \right) | \chi_i \rangle \\
+
+= \sum_{i=1}^{N/2} \langle \sum_{\nu} c^*_{\nu i} \phi_\nu | 2\hat{h} + \sum_{j}^{N/2} \left( 2\hat{J}_j - \hat{K}_j \right) | \sum_{\nu} c_{\nu i} \phi_\nu \rangle \\
+
+= \sum_{\mu \nu} D_{\mu \nu} \left[ 2 H^{\text{core}}_{\mu \nu} + F_{\mu \nu} \right]
+$$
+
 
 ## Computational Implementation
 In practice, we once again expand the atomic basis functions $\lbrace\phi_\mu\rbrace$ with another basis set for computational efficiency. 
