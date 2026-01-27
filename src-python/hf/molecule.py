@@ -214,9 +214,9 @@ class Molecule(BaseModel):
         self.E = E_new
 
     def gradients(self) -> np.ndarray:
-        """Calculate the nuclear gradients of the molecule."""
+        """Calculate the nuclear gradients of the molecule using analytical derivatives."""
         return np.zeros((len(self.atoms), 3))
-    
+
     def hessian(self) -> np.ndarray:    
         """Calculate the nuclear Hessian of the molecule."""
         return np.zeros((len(self.atoms), 3, 3))

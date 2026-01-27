@@ -87,7 +87,7 @@ $$
 After substituting $E_{HF}$ into the Lagrangian and taking the functional derivative with respect to $\chi_i$, we arrive at the non-canonical (i.e., non-eigenvalue) Hartree-Fock equations:
 
 $$
-\hat{F} |\chi_i \rangle = \sum_j^N \epsilon_{ij} |\chi_i \rangle \text{  ;  } \hat{F} = \hat{h} + \sum_{j}^{N} \left( \hat{J}_j - \hat{K}_j \right)
+\left[ \hat{h} + \sum_{j}^{N} \left( \hat{J}_j - \hat{K}_j \right) \right] |\chi_i \rangle = \hat{F} |\chi_i \rangle  =\sum_j^N \epsilon_{ij} |\chi_i \rangle
 $$
 
 ### Unitary Transformation to Canonical Form
@@ -107,10 +107,10 @@ $$
 $$
 
 ### Basis Set Expansion and Roothaan-Hall Equations
-In practice, we express the molecular orbitals as linear combinations of a finite set of known atomic basis functions $\lbrace\phi_\mu\rbrace$:
+In practice, we express the molecular orbitals as linear combinations of a finite basis set of known atomic basis functions $\lbrace\phi_\nu\rbrace$:
 
 $$
-|\chi_i \rangle = \sum_{\mu} c_{\mu i} |\phi_\mu \rangle 
+|\chi_i \rangle = \sum_{\nu} c_{\nu i} |\phi_\nu \rangle 
 \rightarrow \hat{F} |\sum_{\nu} c_{\nu i} \phi_\nu \rangle = \epsilon_i |\sum_{\nu} c_{\nu i} \phi_\nu \rangle
 $$
 
@@ -121,7 +121,9 @@ $$
 \rightarrow \mathbf{F} \mathbf{c} = \mathbf{S} \mathbf{c} \mathbf{\epsilon}
 $$
 
-where $\mathbf{F}$ is the Fock matrix with elements $F_{\mu \nu} = \langle \phi_\mu | \hat{F} | \phi_\nu \rangle$, $\mathbf{S}$ is the overlap matrix with elements $S_{\mu \nu} = \langle \phi_\mu | \phi_\nu \rangle$, $\mathbf{c}$ is the coefficient matrix with elements $c_{\nu i}$, and $\mathbf{\epsilon}$ is the diagonal matrix of orbital energies $\epsilon_i$. To once again obtain an eigenvalue problem, we can apply a transformation using the symmetric orthogonalization matrix $\mathbf{S}^{-1/2}$:
+where $\mathbf{F}$ is the Fock matrix with elements $F_{\mu \nu} = \langle \phi_\mu | \hat{F} | \phi_\nu \rangle$, $\mathbf{S}$ is the overlap matrix with elements $S_{\mu \nu} = \langle \phi_\mu | \phi_\nu \rangle$, $\mathbf{c}$ is the coefficient matrix with elements $c_{\nu i}$, and $\mathbf{\epsilon}$ is the diagonal matrix of orbital energies $\epsilon_i$. Note that since we're working with atomic orbitals, which are generally not orthogonal (to be orthogonal, the electrons in two orbitals need to not interact with one another and physically speaking, you kind of need interaction to form bonds), the overlap matrix $\mathbf{S}$ is not the identity matrix.
+
+To once again obtain an eigenvalue problem, we can apply a transformation using the symmetric orthogonalization matrix $\mathbf{S}^{-1/2}$ (obtained by diagonalizing $\mathbf{S}$ and taking the inverse square root of its eigenvalues):
 
 $$
 \mathbf{F}' = \mathbf{S}^{-1/2} \mathbf{F} \mathbf{S}^{-1/2} \text{ ; } \mathbf{c}' = (\mathbf{S}^{-1/2})^{-1} \mathbf{c} \text{ ; } \mathbf{c} = \mathbf{S}^{-1/2} \mathbf{c}'
