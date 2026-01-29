@@ -1,13 +1,14 @@
+from functools import cached_property
 import math
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from hf.basis_stog import STOGOrbital, STOGIntegrator
+from hf.basis_stog import STOGOrbital, STOGIntegrator, STOGDerivator
 from hf import L
 import numpy as np
 from tqdm import tqdm
 from hf.atom import Atom
 import numpy as np
 import logging
-from typing import Self
+from typing import Self, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +16,9 @@ class Molecule(BaseModel):
     """Molecule class, which consists of multiple atoms."""
     model_config = ConfigDict(extra='forbid', arbitrary_types_allowed=True)
     atoms: list[Atom]
-    C: np.ndarray = Field(default_factory=lambda: np.array([]), description="The coefficients to be optimized during the SCF procedure.")
-    F: np.ndarray = Field(default_factory=lambda: np.array([]), description="The Fock matrix to be optimized during the SCF procedure.")
-    E: float = Field(default=0.0, description="The electronic energy of the molecule, which is optimized during the SCF procedure.")
+    C: Optional[np.ndarray] = Field(default=None, description="The coefficients to be optimized during the SCF procedure.")
+    F: Optional[np.ndarray] = Field(default=None, description="The Fock matrix to be optimized during the SCF procedure.")
+    E: Optional[float] = Field(default=None, description="The electronic energy of the molecule, which is optimized during the SCF procedure.")
 
     @model_validator(mode="after")
     def validate_basis_consistency(self):
@@ -32,6 +33,31 @@ class Molecule(BaseModel):
         if total_electrons % 2 != 0:
             raise ValueError(f"The molecule has an odd number of electrons ({total_electrons}), which is not supported by the current implementation. Please use a molecule with an even number of electrons.")
         return self
+
+    @classmethod
+    def from_file(cls, file_path: str) -> Self:
+        """Create a Molecule object from an input file. The file should contain the atomic symbols and coordinates in the following format:
+        
+        C   0.000000    0.000000    0.000000    6   STO-3G
+        H   0.000000    0.000000    1.089000    1   STO-3G
+        H   1.026719    0.000000   -0.363000    1   STO-3G
+        H  -0.513360   -0.889165   -0.363000    1   STO-3G
+        H  -0.513360    0.889165   -0.363000    1   STO-3G
+        
+        Each line corresponds to an atom, with the atomic symbol followed by the x, y, z coordinates in Angstroms and a basis set.
+        """
+        atoms = []
+        with open(file_path, 'r') as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) != 6:
+                    raise ValueError(f"Invalid line in input file: {line.strip()}. Each line must contain an atomic symbol followed by three coordinates and a basis set.")
+                atom_symbol = parts[0]
+                coords = tuple(float(coord) for coord in parts[1:4])
+                basis_set = parts[5]
+                atoms.append(Atom(atom=atom_symbol, coords=coords, basis_set=basis_set))
+        return cls(atoms=atoms)
+
 
     @property
     def orbitals(self) -> list[STOGOrbital]:
@@ -48,8 +74,14 @@ class Molecule(BaseModel):
         """Return an instance of the STOGIntegrator class, which can be used to calculate the matrices."""
         if self.basis.startswith("STO-"):
             return STOGIntegrator()
+        
+    @cached_property
+    def derivator(self) -> STOGDerivator:
+        """Return an instance of the STOGDerivator class, which can be used to calculate the derivative matrices."""
+        if self.basis.startswith("STO-"):
+            return STOGDerivator()
     
-    @property
+    @cached_property
     def S(self) -> np.ndarray:
         """The overlap integral between all pairs of orbitals in the molecule."""
         S = np.zeros((len(self.orbitals), len(self.orbitals)))
@@ -151,33 +183,144 @@ class Molecule(BaseModel):
         """
         return 2 * np.sum(self.D0 * self.H)
 
+    # @property
+    # def gradients(self) -> np.ndarray:
+    #     """Calculate the nuclear gradients of the molecule using analytical derivatives."""
+    #     return np.zeros((len(self.atoms), 3))
+    
+    @property
+    def gradients(self) -> np.ndarray:
+        """Calculate the nuclear gradients of the molecule using analytical derivatives.
+
+        Implements the standard RHF analytic gradient (Pulay + 1e/2e + nuclear repulsion) in the AO basis:
+
+            dE/dR_A = sum_{μν} P_{μν} dH_{μν}/dR_A
+                    + 1/2 sum_{μνλσ} P_{μν} P_{λσ} d(μν|λσ)/dR_A
+                    - sum_{μν} W_{μν} dS_{μν}/dR_A
+                    + dV_nn/dR_A
+
+        where P is the spin-summed density (P = 2D for closed-shell RHF) and
+        W is the spin-summed energy-weighted density (W = 2 C_occ ε_occ C_occ^T).
+        """
+        # Ensure we have a converged SCF solution
+        if getattr(self, "C", None) is None or getattr(self, "F", None) is None or self.C is None or self.F is None or self.C.size == 0:
+            self.CHF()
+
+        nbf = len(self.orbitals)
+        nat = len(self.atoms)
+        occ = math.ceil(sum(atom.Z for atom in self.atoms) / 2)
+
+        # Recompute MO energies ε (needed for W) from the converged Fock matrix
+        S12 = self.S12
+        eigv, C_orth = np.linalg.eig(S12.T @ self.F @ S12)
+        idx = np.argsort(eigv)
+        eigv, C_orth = eigv[idx], C_orth[:, idx]
+        C = S12 @ C_orth
+
+        # Density matrices (closed-shell RHF, same convention as CHF())
+        D = C[:, :occ] @ C[:, :occ].T   # un-doubled
+        P = 2.0 * D                     # spin-summed density
+
+        # Energy-weighted density (spin-summed)
+        W = 2.0 * (C[:, :occ] @ np.diag(eigv[:occ]) @ C[:, :occ].T)
+
+        deriv = self.derivator
+        dirs = ("x", "y", "z")
+
+        grad = np.zeros((nat, 3))
+
+        # Atom-label string used by orbitals (orb.atom) must match what we pass into derivator
+        atom_labels = [atom.atom for atom in self.atoms]
+        pbar = tqdm(total=nat*3, desc="Computing Gradients", unit="term")
+        for A, atomA in enumerate(self.atoms):
+            RA = np.array(atomA.coords, dtype=float)
+            ZA = float(atomA.Z)
+
+            # Nuclear-nuclear repulsion gradient for atom A
+            g_nn = np.zeros(3)
+            for B, atomB in enumerate(self.atoms):
+                if B == A:
+                    continue
+                RB = np.array(atomB.coords, dtype=float)
+                ZB = float(atomB.Z)
+                rvec = RA - RB
+                r = np.linalg.norm(rvec)
+                if r > 0:
+                    g_nn += ZA * ZB * rvec / (r**3)
+
+            for a, d in enumerate(dirs):
+                # Build AO-derivative matrices dS, dT, dVne (explicit nucleus term)
+                dS = np.zeros((nbf, nbf))
+                dT = np.zeros((nbf, nbf))
+                dVne = np.zeros((nbf, nbf))
+
+                for i in range(nbf):
+                    oi = self.orbitals[i]
+                    for j in range(i, nbf):
+                        oj = self.orbitals[j]
+
+                        # AO-center derivatives (angular-momentum shift identity)
+                        dS_ij = deriv.dSij_or_dTij(oi, oj, atom_labels[A], d, matrix="S")
+                        dT_ij = deriv.dSij_or_dTij(oi, oj, atom_labels[A], d, matrix="T")
+
+                        # Explicit derivative of e–n attraction wrt nucleus A:
+                        # V_ne = sum_C (-Z_C) (μν|C). Your dVijR calls compute_Vab(..., dir),
+                        # which increments the R-index (t+1/u+1/v+1) => electric-field-type integral. :contentReference[oaicite:1]{index=1}
+                        # Because V_ne has a leading -Z (see Vne property), the explicit derivative for C=A is +Z_A * field. :contentReference[oaicite:2]{index=2}
+                        dVne_ij = ZA * deriv.dVijR(oi, oj, atomA.coords, d)
+
+                        dS[i, j] = dS[j, i] = dS_ij
+                        dT[i, j] = dT[j, i] = dT_ij
+                        dVne[i, j] = dVne[j, i] = dVne_ij
+
+                dH = dT + dVne
+
+                # One-electron term: Tr[P dH]
+                g1 = np.sum(P * dH)
+
+                # Pulay term: -Tr[W dS]
+                g_pulay = -np.sum(W * dS)
+
+                # Two-electron term: 1/2 Σ P_ij P_kl d(ij|kl)
+                # Use ERI symmetry (ij) and (kl) and pair-swap to reduce calls.
+                g2 = 0.0
+                for i in range(nbf):
+                    for j in range(i + 1):
+                        Pij = P[i, j]
+                        ij_key = i * nbf + j
+                        mult_ij = 2 if i != j else 1
+                        for k in range(nbf):
+                            for l in range(k + 1):
+                                kl_key = k * nbf + l
+                                if ij_key < kl_key:
+                                    continue
+                                mult_kl = 2 if k != l else 1
+                                mult_pair = 2 if (ij_key != kl_key) else 1
+                                mult = mult_ij * mult_kl * mult_pair
+
+                                # dVijkl handles “which centers coincide with atom” via shifts. :contentReference[oaicite:3]{index=3}
+                                dERI = deriv.dVijkl(
+                                    self.orbitals[i], self.orbitals[j],
+                                    self.orbitals[k], self.orbitals[l],
+                                    atom_labels[A], d
+                                )
+                                g2 += 0.5 * mult * Pij * P[k, l] * dERI
+
+                grad[A, a] = g1 + g2 + g_pulay + g_nn[a]
+                pbar.update(1)
+        pbar.close()
+
+        return np.where(np.isclose(grad, 0.0), 0.0, grad)
+
+
+    @property
+    def hessian(self) -> np.ndarray:    
+        """Calculate the nuclear Hessian of the molecule."""
+        return np.zeros((len(self.atoms), 3, 3))
+
     def to_pyscf_coords(self) -> str:   
         """Convert the molecule's atomic coordinates to a format compatible with PySCF."""
         return ";".join(f"{atom.atom} {atom.coords[0]} {atom.coords[1]} {atom.coords[2]}" for atom in self.atoms)
-    
-    @classmethod
-    def from_file(cls, file_path: str) -> Self:
-        """Create a Molecule object from an input file. The file should contain the atomic symbols and coordinates in the following format:
-        
-        C   0.000000    0.000000    0.000000    6   STO-3G
-        H   0.000000    0.000000    1.089000    1   STO-3G
-        H   1.026719    0.000000   -0.363000    1   STO-3G
-        H  -0.513360   -0.889165   -0.363000    1   STO-3G
-        H  -0.513360    0.889165   -0.363000    1   STO-3G
-        
-        Each line corresponds to an atom, with the atomic symbol followed by the x, y, z coordinates in Angstroms and a basis set.
-        """
-        atoms = []
-        with open(file_path, 'r') as f:
-            for line in f:
-                parts = line.split()
-                if len(parts) != 6:
-                    raise ValueError(f"Invalid line in input file: {line.strip()}. Each line must contain an atomic symbol followed by three coordinates and a basis set.")
-                atom_symbol = parts[0]
-                coords = tuple(float(coord) for coord in parts[1:4])
-                basis_set = parts[5]
-                atoms.append(Atom(atom=atom_symbol, coords=coords, basis_set=basis_set))
-        return cls(atoms=atoms)
 
     def __call__(self, x: float, y: float, z: float) -> np.ndarray:
         """Evaluate the orbitals of the atom at a given point (x, y, z)."""
@@ -213,14 +356,7 @@ class Molecule(BaseModel):
         self.F = F
         self.E = E_new
 
-    def gradients(self) -> np.ndarray:
-        """Calculate the nuclear gradients of the molecule using analytical derivatives."""
-        return np.zeros((len(self.atoms), 3))
-
-    def hessian(self) -> np.ndarray:    
-        """Calculate the nuclear Hessian of the molecule."""
-        return np.zeros((len(self.atoms), 3, 3))
-
     def optimize(self):
         """Optimize the geometry of the molecule."""
         pass
+    

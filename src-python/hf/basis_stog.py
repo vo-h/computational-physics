@@ -1,3 +1,9 @@
+"""
+STO-nG basis set implementation for atomic orbitals using Gaussian Type Orbitals (GTOs).
+Modern Electronic Structure Theory,
+Chapter 12: Gaussian Basis Sets and Molecular Interface by T. Helgaker, P. Jorgensen, J. Olsen
+"""
+
 import math
 from functools import cached_property
 from pydantic import BaseModel, ConfigDict, Field
@@ -5,7 +11,7 @@ from functools import cached_property
 import numpy as np
 from functools import partial
 from scipy.special import hyp1f1
-
+from typing import Literal, Self
 
 class STOGPrimitive(BaseModel):
     """Gaussian Type Orbital (GTO) basis function."""
@@ -29,7 +35,6 @@ class STOGPrimitive(BaseModel):
         numerator = (8 * self.alpha) ** (self.nx + self.ny + self.nz) * math.factorial(self.nx) * math.factorial(self.ny) * math.factorial(self.nz)
         denominator = math.factorial(2*self.nx) * math.factorial(2*self.ny) * math.factorial(2*self.nz)
         return prefactor * math.sqrt(numerator/ denominator)
-    
 
     def Y(self, x: float, y: float , z: float) -> float:
         """Calculate the angular part of the GTO in cartesian coordinates."""
@@ -41,7 +46,18 @@ class STOGPrimitive(BaseModel):
         dist_y = y - self.coords[1]
         dist_z = z - self.coords[2]
         return dist_x ** 2 + dist_y ** 2 + dist_z ** 2
-
+    
+    def pm(self, dir: Literal["x","y","z"], delta: int) -> Self:
+        """Bump the angular momentum quantum number in the specified direction by delta."""
+        copy = self.model_copy(deep=True)
+        if dir == "x":
+            copy.nx += delta
+        elif dir == "y":
+            copy.ny += delta
+        elif dir == "z":
+            copy.nz += delta
+        return copy
+        
     def r(self, x: float, y: float, z: float) -> float:
         """Calculate the distance from the center of the GTO."""
         return math.sqrt(self.r2(x, y, z))
@@ -93,22 +109,54 @@ class STOGIntegrator:
     def Sij(self, orb1: STOGOrbital, orb2: STOGOrbital) -> float:
         """Calculate the overlap integral between two STO-nG orbitals."""
 
-        def compute_Sab(gto1: STOGPrimitive, gto2: STOGPrimitive) -> float:
-            """Calculate the overlap integral S_ab between two GTO primitives. (eq.101)"""
-            prefactor = (math.pi / (gto1.alpha + gto2.alpha)) ** (3 / 2)
-            s_x = self.compute_E(gto1.coords[0], gto2.coords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx, 0)
-            s_y = self.compute_E(gto1.coords[1], gto2.coords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny, 0)
-            s_z = self.compute_E(gto1.coords[2], gto2.coords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz, 0)
-            return prefactor * s_x * s_y * s_z
-
         sij = 0.0
         for u, cc1 in enumerate(orb1.cc):
-            for v, cc2 in enumerate(orb2.cc):
-                sij += cc1 * cc2 * orb1.gtos[u].N * orb2.gtos[v].N * compute_Sab(orb1.gtos[u], orb2.gtos[v])
+            for v, cc2 in enumerate(orb2.cc):  
+                sij += cc1 * cc2 * orb1.gtos[u].N * orb2.gtos[v].N * self.compute_Sab(orb1.gtos[u], orb2.gtos[v])
         return 0.0 if math.isclose(sij, 0.0) else sij
     
     def Tij(self, orb1: STOGOrbital, orb2: STOGOrbital) -> float:
         """Calculate the kinetic energy integral between two STO-nG orbitals."""
+
+        tij = 0.0
+        for u, cc1 in enumerate(orb1.cc):
+            for v, cc2 in enumerate(orb2.cc):
+                tij += cc1 * cc2 * orb1.gtos[u].N * orb2.gtos[v].N * self.compute_Tab(orb1.gtos[u], orb2.gtos[v])
+        return 0.0 if math.isclose(tij, 0.0) else tij
+    
+    def VijR(self, orb1: STOGOrbital, orb2: STOGOrbital, R: tuple[float, float, float]) -> float:
+        """Calculate the electron-nuclear attraction integral between two STO-nG orbitals for a single nucleus."""
+
+        vijr = 0.0
+        for u, cc1 in enumerate(orb1.cc):
+            for v, cc2 in enumerate(orb2.cc):
+                vijr += orb1.gtos[u].N*orb2.gtos[v].N*cc1*cc2*self.compute_Vab(orb1.gtos[u], orb2.gtos[v], R)
+        return 0.0 if math.isclose(vijr, 0.0) else vijr
+
+    def Vijkl(self, orb1: STOGOrbital, orb2: STOGOrbital, orb3: STOGOrbital, orb4: STOGOrbital) -> float:
+        """Calculate the Coulomb repulsion integral between two STO-nG orbitals."""
+        
+        vijkl = 0.0
+        for m, cc1 in enumerate(orb1.cc):
+            for n, cc2 in enumerate(orb2.cc):
+                for u, cc3 in enumerate(orb3.cc):
+                    for v, cc4 in enumerate(orb4.cc):
+                        norms = orb1.gtos[m].N * orb2.gtos[n].N * orb3.gtos[u].N * orb4.gtos[v].N
+                        coefs = cc1 * cc2 * cc3 * cc4
+                        vijkl += norms * coefs * self.compute_Vabcd(orb1.gtos[m], orb2.gtos[n], orb3.gtos[u], orb4.gtos[v])
+        return 0.0 if math.isclose(vijkl, 0.0) else vijkl
+    
+    ####### Common subroutines for Derivator #######
+    def compute_Sab(self, gto1: STOGPrimitive, gto2: STOGPrimitive) -> float:
+        """Calculate the overlap integral S_ab between two GTO primitives. (eq.101)"""
+        prefactor = (math.pi / (gto1.alpha + gto2.alpha)) ** (3 / 2)
+        s_x = self.compute_E(gto1.coords[0], gto2.coords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx, 0)
+        s_y = self.compute_E(gto1.coords[1], gto2.coords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny, 0)
+        s_z = self.compute_E(gto1.coords[2], gto2.coords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz, 0)
+        return prefactor * s_x * s_y * s_z
+
+    def compute_Tab(self, gto1: STOGPrimitive, gto2: STOGPrimitive) -> float:
+        """Calculate the kinetic energy integral T_ab between two GTO primitives. (eq. 121)"""
 
         def compute_D(A: float, B: float, alpha: float, beta: float, ai: int, bi: int, t: int) -> float:
             """ Returns the Dawson function D_n(T) """
@@ -118,28 +166,20 @@ class STOGIntegrator:
             term1 = bi * compute_D(A, B, alpha, beta, ai, bi-1, t-1)
             term2 = 2*beta*compute_D(A, B, alpha, beta, ai, bi+1, t-1)
             return term1 - term2 # eq. 114
-
-        def compute_Tab(orb1: STOGOrbital, orb2: STOGOrbital) -> float:
-            """Calculate the kinetic energy integral T_ab between two GTO primitives. (eq. 121)"""
-            term1 = compute_D(orb1.coords[0], orb2.coords[0], orb1.alpha, orb2.alpha, orb1.nx, orb2.nx, 2)
-            term2 = compute_D(orb1.coords[1], orb2.coords[1], orb1.alpha, orb2.alpha, orb1.ny, orb2.ny, 2)
-            term3 = compute_D(orb1.coords[2], orb2.coords[2], orb1.alpha, orb2.alpha, orb1.nz, orb2.nz, 2)
-            term4 = compute_D(orb1.coords[0], orb2.coords[0], orb1.alpha, orb2.alpha, orb1.nx, orb2.nx, 0)
-            term5 = compute_D(orb1.coords[1], orb2.coords[1], orb1.alpha, orb2.alpha, orb1.ny, orb2.ny, 0)
-            term6 = compute_D(orb1.coords[2], orb2.coords[2], orb1.alpha, orb2.alpha, orb1.nz, orb2.nz, 0)
-            return -0.5 * (term1*term5*term6 + term4*term2*term6 + term4*term5*term3)
-
-        tij = 0.0
-        for u, cc1 in enumerate(orb1.cc):
-            for v, cc2 in enumerate(orb2.cc):
-                tij += cc1 * cc2 * orb1.gtos[u].N * orb2.gtos[v].N * compute_Tab(orb1.gtos[u], orb2.gtos[v])
-        return 0.0 if math.isclose(tij, 0.0) else tij
     
-    def VijR(self, orb1: STOGOrbital, orb2: STOGOrbital, R: tuple[float, float, float]) -> float:
-        """Calculate the electron-nuclear attraction integral between two STO-nG orbitals for a single nucleus."""
-
-        def compute_Vab(gto1: STOGPrimitive, gto2: STOGPrimitive, R: tuple[float, float, float]) -> float:
-            """Calculate the nuclear attraction integral between two STO-nG orbitals for a single nucleus. (eq. 199-204)"""
+        term1 = compute_D(gto1.coords[0], gto2.coords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx, 2)
+        term2 = compute_D(gto1.coords[1], gto2.coords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny, 2)
+        term3 = compute_D(gto1.coords[2], gto2.coords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz, 2)
+        term4 = compute_D(gto1.coords[0], gto2.coords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx, 0)
+        term5 = compute_D(gto1.coords[1], gto2.coords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny, 0)
+        term6 = compute_D(gto1.coords[2], gto2.coords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz, 0)
+        return -0.5 * (term1*term5*term6 + term4*term2*term6 + term4*term5*term3)
+    
+    def compute_Vab(self, gto1: STOGPrimitive, gto2: STOGPrimitive, R: tuple[float, float, float], dir: Literal["x", "y", "z"] = None) -> float:
+            """
+            Calculate the nuclear attraction integral between two STO-nG orbitals for a single nucleus. (eq. 199-204).
+            dir parameter is unused here but kept for compatibility with the Derivator class.
+            """
             p = gto1.alpha + gto2.alpha
             P = (gto1.alpha * np.array(gto1.coords) + gto2.alpha * np.array(gto2.coords)) / p
 
@@ -147,22 +187,13 @@ class STOGIntegrator:
             for t in range(gto1.nx+gto2.nx+1):
                 for u in range(gto1.ny+gto2.ny+1):
                     for v in range(gto1.nz+gto2.nz+1):
-                        val += self.compute_E(gto1.coords[0], gto2.coords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx, t) * \
-                            self.compute_E(gto1.coords[1], gto2.coords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny, u) * \
-                            self.compute_E(gto1.coords[2], gto2.coords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz, v) * \
-                            self.compute_R(t, u, v, 0, p, P, R)
+                        Ex = self.compute_E(gto1.coords[0], gto2.coords[0], gto1.alpha, gto2.alpha, gto1.nx, gto2.nx, t)
+                        Ey = self.compute_E(gto1.coords[1], gto2.coords[1], gto1.alpha, gto2.alpha, gto1.ny, gto2.ny, u)
+                        Ez = self.compute_E(gto1.coords[2], gto2.coords[2], gto1.alpha, gto2.alpha, gto1.nz, gto2.nz, v)
+                        val += Ex * Ey * Ez * self.compute_R(t+1 if dir == "x" else t, u+1 if dir == "y" else u, v+1 if dir == "z" else v, 0, p, P, R)
             return 2*np.pi/p  * val
 
-        vijr = 0.0
-        for u, cc1 in enumerate(orb1.cc):
-            for v, cc2 in enumerate(orb2.cc):
-                vijr += orb1.gtos[u].N*orb2.gtos[v].N*cc1*cc2*compute_Vab(orb1.gtos[u], orb2.gtos[v], R)
-        return 0.0 if math.isclose(vijr, 0.0) else vijr
-
-    def Vijkl(self, orb1: STOGOrbital, orb2: STOGOrbital, orb3: STOGOrbital, orb4: STOGOrbital) -> float:
-        """Calculate the Coulomb repulsion integral between two STO-nG orbitals."""
-
-        def compute_Vabcd(gto1: STOGPrimitive, gto2: STOGPrimitive, gto3: STOGPrimitive, gto4: STOGPrimitive) -> float:
+    def compute_Vabcd(self, gto1: STOGPrimitive, gto2: STOGPrimitive, gto3: STOGPrimitive, gto4: STOGPrimitive) -> float:
             """Calculate the electron-electron repulsion integral between two STO-nG orbitals."""
             p = gto1.alpha + gto2.alpha
             q = gto3.alpha + gto4.alpha
@@ -187,17 +218,6 @@ class STOGIntegrator:
                                     val += term1*term2*term3*term4*term5*term6*term7*term8
             prefactor = 2 * math.pi**(5/2) / (p * q * math.sqrt(p + q))
             return prefactor * val
-        
-        vijkl = 0.0
-        for m, cc1 in enumerate(orb1.cc):
-            for n, cc2 in enumerate(orb2.cc):
-                for u, cc3 in enumerate(orb3.cc):
-                    for v, cc4 in enumerate(orb4.cc):
-                        norms = orb1.gtos[m].N * orb2.gtos[n].N * orb3.gtos[u].N * orb4.gtos[v].N
-                        coefs = cc1 * cc2 * cc3 * cc4
-                        vijkl += norms * coefs * compute_Vabcd(orb1.gtos[m], orb2.gtos[n], orb3.gtos[u], orb4.gtos[v])
-        return 0.0 if math.isclose(vijkl, 0.0) else vijkl
-
 
     ####### Common subroutines for Sij, Tij, and Vij #######
 
@@ -258,4 +278,89 @@ class STOGIntegrator:
         return val
 
     
+class STOGDerivator:
 
+    def __init__(self):
+        self.intor = STOGIntegrator()
+
+    def dSij_or_dTij(self, orb1: STOGOrbital, orb2: STOGOrbital, atom: str, dir: Literal['x', 'y', 'z'] = 'x', matrix: Literal['S', 'T'] = 'S') -> float:
+        """Compute the derivative of the overlap integral Sij with respect to the position of a given atom."""
+        if orb1.atom != atom and orb2.atom != atom:
+            return 0.0
+        
+        def compute_dab(gto1: STOGPrimitive, gto2: STOGPrimitive, dir: Literal['x', 'y', 'z']) -> float:
+            """Calculate the derivative of the overlap integral S_ab between two GTO primitives."""
+            func = self.intor.compute_Tab if matrix == 'T' else self.intor.compute_Sab
+            term1 = 2*gto1.alpha*func(gto1.pm(dir, +1), gto2)
+            term2 = getattr(gto1, f"n{dir}") * func(gto1.pm(dir, -1), gto2)
+            term3 = 2*gto2.alpha*func(gto1, gto2.pm(dir, +1))
+            term4 = getattr(gto2, f"n{dir}") * func(gto1, gto2.pm(dir, -1))
+            result = 0.0
+            result += (term1 - term2) if orb1.atom == atom else 0.0
+            result += (term3 - term4) if orb2.atom == atom else 0.0
+            return result
+        
+        ij = 0.0
+        for u, cc1 in enumerate(orb1.cc):
+            for v, cc2 in enumerate(orb2.cc):
+                gto1 = orb1.gtos[u]
+                gto2 = orb2.gtos[v]         
+                ij += cc1 * cc2 * orb1.gtos[u].N * orb2.gtos[v].N * compute_dab(gto1, gto2, dir)
+        return 0.0 if math.isclose(ij, 0.0) else ij
+    
+    def dVijR(self, orb1: STOGOrbital, orb2: STOGOrbital, R: tuple[float, float, float], dir: Literal["x","y","z"]="x") -> float:
+        """Calculate the derivative of the electron-nuclear attraction integral between two STO-nG orbitals for a single nucleus."""
+
+        eijr = 0.0
+        for u, cc1 in enumerate(orb1.cc):
+            for v, cc2 in enumerate(orb2.cc):
+                gto1 = orb1.gtos[u]
+                gto2 = orb2.gtos[v]
+                eijr += (gto1.N * gto2.N) * cc1 * cc2 * self.intor.compute_Vab(gto1, gto2, R, dir)
+
+        return 0.0 if math.isclose(eijr, 0.0) else eijr
+    
+    def dVijkl(self, orb1: STOGOrbital, orb2: STOGOrbital, orb3: STOGOrbital, orb4: STOGOrbital, atom: str, dir: Literal["x","y","z"]="x") -> float:
+        """Calculate the derivative of the Coulomb repulsion integral between two STO-nG orbitals."""
+        
+        if (orb1.atom != atom) and (orb2.atom != atom) and (orb3.atom != atom) and (orb4.atom != atom):
+            return 0.0
+        
+        def dVabcd(gto1: STOGPrimitive, gto2: STOGPrimitive, gto3: STOGPrimitive, gto4: STOGPrimitive) -> float:
+            """Derivative contributions from whichever centers coincide with `atom`, using  d/dA_dir g = 2*alpha*g^{+dir} - n_dir*g^{-dir}"""
+            res = 0.0
+            if orb1.atom == atom:
+                res += 2.0 * gto1.alpha * self.intor.compute_Vabcd(gto1.pm(dir, +1), gto2, gto3, gto4)
+                l1 = getattr(gto1, f"n{dir}")
+                res -= l1 * self.intor.compute_Vabcd(gto1.pm(dir, -1), gto2, gto3, gto4) if l1 > 0 else 0.0
+
+            if orb2.atom == atom:
+                res += 2.0 * gto2.alpha * self.intor.compute_Vabcd(gto1, gto2.pm(dir, +1), gto3, gto4)
+                l2 = getattr(gto2, f"n{dir}")
+                res -= l2 * self.intor.compute_Vabcd(gto1, gto2.pm(dir, -1), gto3, gto4) if l2 > 0 else 0.0
+
+            if orb3.atom == atom:
+                res += 2.0 * gto3.alpha * self.intor.compute_Vabcd(gto1, gto2, gto3.pm(dir, +1), gto4)
+                l3 = getattr(gto3, f"n{dir}")
+                res -= l3 * self.intor.compute_Vabcd(gto1, gto2, gto3.pm(dir, -1), gto4) if l3 > 0 else 0.0
+
+            if orb4.atom == atom:
+                res += 2.0 * gto4.alpha * self.intor.compute_Vabcd(gto1, gto2, gto3, gto4.pm(dir, +1))
+                l4 = getattr(gto4, f"n{dir}")
+                res -= l4 * self.intor.compute_Vabcd(gto1, gto2, gto3, gto4.pm(dir, -1)) if l4 > 0 else 0.0
+            return res
+
+        dvijkl = 0.0
+        for m, cc1 in enumerate(orb1.cc):
+            for n, cc2 in enumerate(orb2.cc):
+                for u, cc3 in enumerate(orb3.cc):
+                    for v, cc4 in enumerate(orb4.cc):
+                        g1 = orb1.gtos[m]
+                        g2 = orb2.gtos[n]
+                        g3 = orb3.gtos[u]
+                        g4 = orb4.gtos[v]
+                        norms = g1.N * g2.N * g3.N * g4.N
+                        coefs = cc1 * cc2 * cc3 * cc4
+                        dvijkl += norms * coefs * dVabcd(g1, g2, g3, g4)
+
+        return 0.0 if math.isclose(dvijkl, 0.0) else dvijkl
