@@ -8,6 +8,7 @@ from tqdm import tqdm
 from hf.atom import Atom
 import numpy as np
 import logging
+from numpy.typing import NDArray
 from typing import Self, Optional
 
 logger = logging.getLogger(__name__)
@@ -16,8 +17,8 @@ class Molecule(BaseModel):
     """Molecule class, which consists of multiple atoms."""
     model_config = ConfigDict(extra='forbid', arbitrary_types_allowed=True)
     atoms: list[Atom]
-    C: Optional[np.ndarray] = Field(default=None, description="The coefficients to be optimized during the SCF procedure.")
-    F: Optional[np.ndarray] = Field(default=None, description="The Fock matrix to be optimized during the SCF procedure.")
+    C: Optional[NDArray[np.float64]] = Field(default=None, description="The coefficients to be optimized during the SCF procedure.")
+    F: Optional[NDArray[np.float64]] = Field(default=None, description="The Fock matrix to be optimized during the SCF procedure.")
     E: Optional[float] = Field(default=None, description="The electronic energy of the molecule, which is optimized during the SCF procedure.")
 
     @model_validator(mode="after")
@@ -246,7 +247,7 @@ class Molecule(BaseModel):
                 rvec = RA - RB
                 r = np.linalg.norm(rvec)
                 if r > 0:
-                    g_nn += ZA * ZB * rvec / (r**3)
+                    g_nn -= ZA * ZB * rvec / (r**3)  # Note: negative sign!
 
             for a, d in enumerate(dirs):
                 # Build AO-derivative matrices dS, dT, dVne (explicit nucleus term)
@@ -264,10 +265,8 @@ class Molecule(BaseModel):
                         dT_ij = deriv.dSij_or_dTij(oi, oj, atom_labels[A], d, matrix="T")
 
                         # Explicit derivative of e–n attraction wrt nucleus A:
-                        # V_ne = sum_C (-Z_C) (μν|C). Your dVijR calls compute_Vab(..., dir),
-                        # which increments the R-index (t+1/u+1/v+1) => electric-field-type integral. :contentReference[oaicite:1]{index=1}
-                        # Because V_ne has a leading -Z (see Vne property), the explicit derivative for C=A is +Z_A * field. :contentReference[oaicite:2]{index=2}
-                        dVne_ij = ZA * deriv.dVijR(oi, oj, atomA.coords, d)
+                        # Testing negative sign for field integral
+                        dVne_ij = -ZA * deriv.dVijR(oi, oj, atomA.coords, d)
 
                         dS[i, j] = dS[j, i] = dS_ij
                         dT[i, j] = dT[j, i] = dT_ij
@@ -275,36 +274,41 @@ class Molecule(BaseModel):
 
                 dH = dT + dVne
 
-                # One-electron term: Tr[P dH]
-                g1 = np.sum(P * dH)
+                # One-electron term: 2 * Tr[D dH] (factor of 2 for closed-shell)
+                g1 = 2.0 * np.sum(D * dH)
 
                 # Pulay term: -Tr[W dS]
                 g_pulay = -np.sum(W * dS)
 
-                # Two-electron term: 1/2 Σ P_ij P_kl d(ij|kl)
-                # Use ERI symmetry (ij) and (kl) and pair-swap to reduce calls.
+                # Two-electron term: Sum D_ij D_kl [2 d(ij|kl) - d(ik|jl)]
+                # Using un-doubled density D for proper formula
                 g2 = 0.0
                 for i in range(nbf):
-                    for j in range(i + 1):
-                        Pij = P[i, j]
-                        ij_key = i * nbf + j
-                        mult_ij = 2 if i != j else 1
+                    for j in range(nbf):
+                        Dij = D[i, j]
+                        if abs(Dij) < 1e-14:
+                            continue
                         for k in range(nbf):
-                            for l in range(k + 1):
-                                kl_key = k * nbf + l
-                                if ij_key < kl_key:
+                            for l in range(nbf):
+                                Dkl = D[k, l]
+                                if abs(Dkl) < 1e-14:
                                     continue
-                                mult_kl = 2 if k != l else 1
-                                mult_pair = 2 if (ij_key != kl_key) else 1
-                                mult = mult_ij * mult_kl * mult_pair
-
-                                # dVijkl handles “which centers coincide with atom” via shifts. :contentReference[oaicite:3]{index=3}
-                                dERI = deriv.dVijkl(
+                                
+                                # Coulomb derivative: 2 * d(ij|kl)
+                                dERI_coulomb = deriv.dVijkl(
                                     self.orbitals[i], self.orbitals[j],
                                     self.orbitals[k], self.orbitals[l],
                                     atom_labels[A], d
                                 )
-                                g2 += 0.5 * mult * Pij * P[k, l] * dERI
+                                
+                                # Exchange derivative: -d(ik|jl)
+                                dERI_exchange = deriv.dVijkl(
+                                    self.orbitals[i], self.orbitals[k],
+                                    self.orbitals[j], self.orbitals[l],
+                                    atom_labels[A], d
+                                )
+                                
+                                g2 += Dij * Dkl * (2.0 * dERI_coulomb - dERI_exchange)
 
                 grad[A, a] = g1 + g2 + g_pulay + g_nn[a]
                 pbar.update(1)
@@ -322,9 +326,18 @@ class Molecule(BaseModel):
         """Convert the molecule's atomic coordinates to a format compatible with PySCF."""
         return ";".join(f"{atom.atom} {atom.coords[0]} {atom.coords[1]} {atom.coords[2]}" for atom in self.atoms)
 
-    def __call__(self, x: float, y: float, z: float) -> np.ndarray:
-        """Evaluate the orbitals of the atom at a given point (x, y, z)."""
-        return np.array([orb(x, y, z) for orb in self.orbitals])
+    def __call__(self, x: float, y: float, z: float, mo: int) -> float:
+        """Evaluate a molecular orbital of the atom at a given point (x, y, z)."""
+        if self.C is None:
+            raise ValueError(
+                "SCF calculation has not been performed yet. "
+                "Please run SCF before evaluating molecular orbitals."
+            )
+        
+        val = 0.0
+        for i, orbital in enumerate(self.orbitals):
+            val += self.C[i, mo] * orbital(x, y, z)
+        return val
     
     def CHF(self, delta: float = 1e-12, max_iter: int = 100):
         """Perform the Hartree-Fock self-consistent field (SCF) procedure to optimize the coefficients of the molecular orbitals."""

@@ -2,11 +2,13 @@ import click
 from hf.molecule import Molecule
 import numpy as np
 import sys
+from hf.plot import plot_molecular_orbital
 
 @click.command()
 @click.option('--input-file', type=click.Path(exists=True), help='Input file for the molecule')
-@click.option('--method', type=click.Choice(['1e-mat', '2e-mat', 'guesses', 'scf']), default='scf', help='Method to use')
-def hf(input_file: str, method: str):
+@click.option('--method', type=click.Choice(['1e-mat', '2e-mat', 'guesses', 'scf', 'plot']), default='scf', help='Method to use')
+@click.option('--mo', type=int, default=0, help='Molecular orbital index to plot (only for plot method)')
+def hf(input_file: str, method: str, mo: int):
     """Perform SCF on a molecule. Have options for input file, and method used like compute overlap, hamiltonian and final SCF."""
     
     # Red input file and create molecule object
@@ -38,3 +40,8 @@ def hf(input_file: str, method: str):
         elif method == 'scf':
             molecule.CHF()
             print("SCF converged. Final energy: {:.6f} Hartree".format(molecule.E))
+        elif method == 'plot':
+            molecule.CHF()
+            fig = plot_molecular_orbital(molecule, mo=mo, grid_size=40)
+            fig.write_html('molecular_orbital.html')
+            print("Molecular orbital plot saved to 'molecular_orbital.html'")

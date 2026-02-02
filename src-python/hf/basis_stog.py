@@ -284,7 +284,10 @@ class STOGDerivator:
         self.intor = STOGIntegrator()
 
     def dSij_or_dTij(self, orb1: STOGOrbital, orb2: STOGOrbital, atom: str, dir: Literal['x', 'y', 'z'] = 'x', matrix: Literal['S', 'T'] = 'S') -> float:
-        """Compute the derivative of the overlap integral Sij with respect to the position of a given atom."""
+        """Compute the derivative of the overlap integral Sij with respect to the NUCLEAR position of a given atom.
+        
+        Note: derivative wrt nuclear coordinate R_A = -derivative wrt orbital center coordinate.
+        """
         if orb1.atom != atom and orb2.atom != atom:
             return 0.0
         
@@ -296,8 +299,9 @@ class STOGDerivator:
             term3 = 2*gto2.alpha*func(gto1, gto2.pm(dir, +1))
             term4 = getattr(gto2, f"n{dir}") * func(gto1, gto2.pm(dir, -1))
             result = 0.0
-            result += (term1 - term2) if orb1.atom == atom else 0.0
-            result += (term3 - term4) if orb2.atom == atom else 0.0
+            # Negative signs because d/dR_A = -d/d(orbital_center)
+            result -= (term1 - term2) if orb1.atom == atom else 0.0
+            result -= (term3 - term4) if orb2.atom == atom else 0.0
             return result
         
         ij = 0.0
@@ -321,33 +325,33 @@ class STOGDerivator:
         return 0.0 if math.isclose(eijr, 0.0) else eijr
     
     def dVijkl(self, orb1: STOGOrbital, orb2: STOGOrbital, orb3: STOGOrbital, orb4: STOGOrbital, atom: str, dir: Literal["x","y","z"]="x") -> float:
-        """Calculate the derivative of the Coulomb repulsion integral between two STO-nG orbitals."""
+        """Calculate the derivative of the Coulomb repulsion integral wrt NUCLEAR position."""
         
         if (orb1.atom != atom) and (orb2.atom != atom) and (orb3.atom != atom) and (orb4.atom != atom):
             return 0.0
         
         def dVabcd(gto1: STOGPrimitive, gto2: STOGPrimitive, gto3: STOGPrimitive, gto4: STOGPrimitive) -> float:
-            """Derivative contributions from whichever centers coincide with `atom`, using  d/dA_dir g = 2*alpha*g^{+dir} - n_dir*g^{-dir}"""
+            """Derivative contributions. Note: d/dR_A = -d/d(orbital_center)"""
             res = 0.0
             if orb1.atom == atom:
-                res += 2.0 * gto1.alpha * self.intor.compute_Vabcd(gto1.pm(dir, +1), gto2, gto3, gto4)
+                res -= 2.0 * gto1.alpha * self.intor.compute_Vabcd(gto1.pm(dir, +1), gto2, gto3, gto4)
                 l1 = getattr(gto1, f"n{dir}")
-                res -= l1 * self.intor.compute_Vabcd(gto1.pm(dir, -1), gto2, gto3, gto4) if l1 > 0 else 0.0
+                res += l1 * self.intor.compute_Vabcd(gto1.pm(dir, -1), gto2, gto3, gto4) if l1 > 0 else 0.0
 
             if orb2.atom == atom:
-                res += 2.0 * gto2.alpha * self.intor.compute_Vabcd(gto1, gto2.pm(dir, +1), gto3, gto4)
+                res -= 2.0 * gto2.alpha * self.intor.compute_Vabcd(gto1, gto2.pm(dir, +1), gto3, gto4)
                 l2 = getattr(gto2, f"n{dir}")
-                res -= l2 * self.intor.compute_Vabcd(gto1, gto2.pm(dir, -1), gto3, gto4) if l2 > 0 else 0.0
+                res += l2 * self.intor.compute_Vabcd(gto1, gto2.pm(dir, -1), gto3, gto4) if l2 > 0 else 0.0
 
             if orb3.atom == atom:
-                res += 2.0 * gto3.alpha * self.intor.compute_Vabcd(gto1, gto2, gto3.pm(dir, +1), gto4)
+                res -= 2.0 * gto3.alpha * self.intor.compute_Vabcd(gto1, gto2, gto3.pm(dir, +1), gto4)
                 l3 = getattr(gto3, f"n{dir}")
-                res -= l3 * self.intor.compute_Vabcd(gto1, gto2, gto3.pm(dir, -1), gto4) if l3 > 0 else 0.0
+                res += l3 * self.intor.compute_Vabcd(gto1, gto2, gto3.pm(dir, -1), gto4) if l3 > 0 else 0.0
 
             if orb4.atom == atom:
-                res += 2.0 * gto4.alpha * self.intor.compute_Vabcd(gto1, gto2, gto3, gto4.pm(dir, +1))
+                res -= 2.0 * gto4.alpha * self.intor.compute_Vabcd(gto1, gto2, gto3, gto4.pm(dir, +1))
                 l4 = getattr(gto4, f"n{dir}")
-                res -= l4 * self.intor.compute_Vabcd(gto1, gto2, gto3, gto4.pm(dir, -1)) if l4 > 0 else 0.0
+                res += l4 * self.intor.compute_Vabcd(gto1, gto2, gto3, gto4.pm(dir, -1)) if l4 > 0 else 0.0
             return res
 
         dvijkl = 0.0
@@ -364,3 +368,4 @@ class STOGDerivator:
                         dvijkl += norms * coefs * dVabcd(g1, g2, g3, g4)
 
         return 0.0 if math.isclose(dvijkl, 0.0) else dvijkl
+
