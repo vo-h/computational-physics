@@ -5,6 +5,8 @@
     *   [The Born-Oppenheimer Approximation of $`\hat{H}`$ ](#the-born-oppenheimer-approximation-of-hath)
     *   [Constrained Optimization To Obtain Ground State Energy: $`E_{HF}`$ ](#constrained-optimization-to-obtain-ground-state-energy-e_hf)
     *   [Basis Set Expansion and Roothaan-Hall Equations](#Basis-Set-Expansion-and-Roothaan-Hall-Equations)
+    *   [The Density Matrix](#The-Density-Matrix)
+    *   [The Self-Consistent Field (SCF) Procedure: Closed Shell Variant](#The-Self-Consistent-Field-SCF-Procedure-Closed-Shell-Variant)
 *   [Computational Implementation](#Computational-Implementation)
     *   [Contracted Gaussian Basis Sets: STO-nG](#Contracted-Gaussian-Basis-Sets-STO-nG)
     *   [Overlap, Kinetic, and Nuclear Attraction Integrals](#Overlap,-Kinetic,-and-Nuclear-Attraction-Integrals)
@@ -142,10 +144,10 @@ Given these ingredients, we can roughly see how the Hartree-Fock method can be i
 
 ### The Density Matrix
 
-Starting from the Hartree-Fock energy for a closed-shell system where each spatial orbital contains 2 electrons:
+Basis set expansion naturally leads to a density matrix formulation. Starting from the general Hartree-Fock energy expression with $N_{\text{occ}}$ occupied molecular spin-orbitals:
 
 $$
-E_{\text{elec}} = \sum_{i=1}^{N/2} \langle \chi_i | 2\hat{h} | \chi_i \rangle + \sum_{i=1}^{N/2} \sum_{j=1}^{N/2} \left[ 2\langle \chi_i \chi_i | \chi_j \chi_j \rangle - \langle \chi_i \chi_j | \chi_j \chi_i \rangle \right]
+E_{\text{elec}} = \sum_{i=1}^{N_{\text{occ}}} \langle \chi_i | \hat{h} | \chi_i \rangle + \frac{1}{2}\sum_{i=1}^{N_{\text{occ}}} \sum_{j=1}^{N_{\text{occ}}} \left[ \langle \chi_i \chi_j | \chi_i \chi_j \rangle - \langle \chi_i \chi_j | \chi_j \chi_i \rangle \right]
 $$
 
 **Expanding using LCAO:** Substitute the LCAO expansion $|\chi_i \rangle = \sum_{\nu} c_{\nu i} |\phi_\nu \rangle$ into the one-electron term:
@@ -157,36 +159,28 @@ $$
 (assuming real coefficients). Summing over occupied orbitals:
 
 $$
-\sum_{i=1}^{N/2} \langle \chi_i | 2\hat{h} | \chi_i \rangle = 2\sum_{i=1}^{N/2} \sum_{\mu \nu} c_{\mu i} c_{\nu i} H^{\text{core}}_{\mu \nu} = 2\sum_{\mu \nu} H^{\text{core}}_{\mu \nu} \sum_{i=1}^{N/2} c_{\mu i} c_{\nu i} = 2\sum_{\mu \nu} H^{\text{core}}_{\mu \nu} D_{\mu \nu}
+\sum_{i=1}^{N_{\text{occ}}} \langle \chi_i | \hat{h} | \chi_i \rangle = \sum_{i=1}^{N_{\text{occ}}} \sum_{\mu \nu} c_{\mu i} c_{\nu i} H^{\text{core}}_{\mu \nu} = \sum_{\mu \nu} H^{\text{core}}_{\mu \nu} \sum_{i=1}^{N_{\text{occ}}} c_{\mu i} c_{\nu i} = \sum_{\mu \nu} H^{\text{core}}_{\mu \nu} D_{\mu \nu}
 $$
 
-where we identify the **density matrix** $D_{\mu \nu} = \sum_{i=1}^{N/2} c_{\mu i} c_{\nu i}$.
+where we identify the **density matrix** $D_{\mu \nu} = \sum_{i=1}^{N_{\text{occ}}} c_{\mu i} c_{\nu i}$.
 
-**For the two-electron terms:** Similarly, expand the two-electron integrals:
-
-$$
-\langle \chi_i \chi_i | \chi_j \chi_j \rangle = \sum_{\mu \nu \lambda \sigma} c_{\mu i} c_{\nu i} c_{\lambda j} c_{\sigma j} (\mu \nu | \lambda \sigma)
-$$
-
-Summing over occupied orbitals and using the density matrix:
+**For the two-electron terms:** Similarly, expand the two-electron integrals using the notation $\langle \chi_i \chi_j | \chi_k \chi_l \rangle = \iint \chi_i^*(\vec{r}_1) \chi_j^*(\vec{r}_2) \frac{1}{r_{12}} \chi_k(\vec{r}_1) \chi_l(\vec{r}_2) d\vec{r}_1 d\vec{r}_2$:
 
 $$
-\sum_{i,j=1}^{N/2} \langle \chi_i \chi_i | \chi_j \chi_j \rangle = \sum_{\mu \nu \lambda \sigma} (\mu \nu | \lambda \sigma) \sum_{i=1}^{N/2} c_{\mu i} c_{\nu i} \sum_{j=1}^{N/2} c_{\lambda j} c_{\sigma j} = \sum_{\mu \nu \lambda \sigma} (\mu \nu | \lambda \sigma) D_{\mu \nu} D_{\lambda \sigma}
+\langle \chi_i \chi_j | \chi_i \chi_j \rangle = \sum_{\mu \nu \lambda \sigma} c_{\mu i} c_{\nu j} c_{\lambda i} c_{\sigma j} (\phi_\mu \phi_\nu | \phi_\lambda \phi_\sigma)
 $$
 
-The exchange term follows analogously. Combining all terms with proper factors:
+Summing over occupied orbitals:
 
 $$
-E_{\text{elec}} = \sum_{\mu \nu} D_{\mu \nu} H^{\text{core}}_{\mu \nu} + \frac{1}{2} \sum_{\mu \nu \lambda \sigma} D_{\mu \nu} D_{\lambda \sigma} \left[ 2(\mu \nu | \lambda \sigma) - (\mu \lambda | \nu \sigma) \right]
+\sum_{i,j=1}^{N_{\text{occ}}} \langle \chi_i \chi_j | \chi_i \chi_j \rangle = \sum_{\mu \nu \lambda \sigma} (\phi_\mu \phi_\nu | \phi_\lambda \phi_\sigma) \sum_{i=1}^{N_{\text{occ}}} c_{\mu i} c_{\lambda i} \sum_{j=1}^{N_{\text{occ}}} c_{\nu j} c_{\sigma j} = \sum_{\mu \nu \lambda \sigma} (\phi_\mu \phi_\nu | \phi_\lambda \phi_\sigma) D_{\mu \lambda} D_{\nu \sigma}
 $$
 
-Recognizing that the Fock matrix is $F_{\mu \nu} = H^{\text{core}}_{\mu \nu} + \sum_{\lambda \sigma} D_{\lambda \sigma} \left[ 2(\mu \nu | \lambda \sigma) - (\mu \lambda | \nu \sigma) \right]$, we can simplify:
+The exchange term follows analogously, which gives us the final expression for the electronic energy in terms of the density matrix:
 
 $$
-E_{\text{elec}} = \sum_{\mu \nu} D_{\mu \nu} \left[ H^{\text{core}}_{\mu \nu} + F_{\mu \nu} \right]
+E_{\text{elec}} = \sum_{\mu \nu} D_{\mu \nu} H^{\text{core}}_{\mu \nu} + \frac{1}{2} \sum_{\mu \nu \lambda \sigma} D_{\mu \lambda} D_{\nu \sigma} \left[ (\phi_\mu \phi_\nu | \phi_\lambda \phi_\sigma) - (\phi_\mu \phi_\nu | \phi_\sigma \phi_\lambda) \right]
 $$
-
-This shows explicitly how the LCAO expansion coefficients $c_{\mu i}$ lead to the density matrix $D_{\mu \nu}$, which in turn enables a compact expression for the electronic energy in terms of basis function integrals
 
 
 ### The Self-Consistent Field (SCF) Procedure: Closed Shell Variant
